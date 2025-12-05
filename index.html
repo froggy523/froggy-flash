@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Froggy Flash</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card-bg: #020617;
+        --accent: #22c55e;
+        --accent-soft: rgba(34, 197, 94, 0.12);
+        --accent-strong: rgba(34, 197, 94, 0.22);
+        --accent-muted: #4ade80;
+        --danger: #f97373;
+        --danger-soft: rgba(248, 113, 113, 0.14);
+        --text: #e5e7eb;
+        --text-muted: #9ca3af;
+        --border-subtle: rgba(148, 163, 184, 0.35);
+        --border-strong: rgba(148, 163, 184, 0.7);
+        --shadow-soft: 0 22px 55px rgba(15, 23, 42, 0.88);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: radial-gradient(circle at top, #1e293b 0, #020617 55%, #000 100%);
+        color: var(--text);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 24px;
+      }
+
+      .app-shell {
+        width: 100%;
+        max-width: 1024px;
+        display: grid;
+        grid-template-columns: minmax(0, 3fr) minmax(260px, 1.4fr);
+        gap: 20px;
+        height: 100%;
+      }
+
+      @media (max-width: 900px) {
+        .app-shell {
+          grid-template-columns: minmax(0, 1fr);
+          grid-template-rows: auto auto;
+        }
+      }
+
+      .panel {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.96));
+        border-radius: 18px;
+        border: 1px solid var(--border-subtle);
+        box-shadow: var(--shadow-soft);
+        padding: 18px 18px 20px;
+        backdrop-filter: blur(12px);
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+
+      .title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .frog-pill {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 30% 30%, #4ade80, #16a34a);
+        border: 1px solid rgba(22, 163, 74, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #022c22;
+        font-weight: 800;
+        font-size: 18px;
+        box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.7), 0 8px 20px rgba(22, 163, 74, 0.9);
+      }
+
+      .app-title-block {
+        display: flex;
+        flex-direction: column;
+      }
+
+      h1 {
+        font-size: 20px;
+        letter-spacing: 0.02em;
+      }
+
+      .subtitle {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .load-btn {
+        border-radius: 999px;
+        border: 1px solid var(--accent-muted);
+        background: radial-gradient(circle at 20% 0%, #4ade80 0, #16a34a 30%, #16a34a 55%, #15803d 80%);
+        color: #022c22;
+        font-weight: 600;
+        font-size: 13px;
+        padding: 8px 16px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 14px 26px rgba(22, 163, 74, 0.9);
+        transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+        white-space: nowrap;
+      }
+
+      .load-btn span.icon {
+        font-size: 16px;
+      }
+
+      .load-btn:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.05);
+        box-shadow: 0 18px 32px rgba(22, 163, 74, 1);
+      }
+
+      .load-btn:active {
+        transform: translateY(0px) scale(0.99);
+        box-shadow: 0 10px 18px rgba(22, 163, 74, 0.8);
+      }
+
+      .set-meta {
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: radial-gradient(circle at 0 0, rgba(52, 211, 153, 0.22), transparent 58%);
+        border: 1px solid rgba(52, 211, 153, 0.32);
+      }
+
+      .set-meta-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .set-meta-desc {
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+
+      .set-meta-file {
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--text-muted);
+        opacity: 0.8;
+      }
+
+      .empty-state {
+        margin-top: 24px;
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px dashed rgba(148, 163, 184, 0.6);
+        background: radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.12), transparent 60%);
+        font-size: 13px;
+        color: var(--text-muted);
+        line-height: 1.5;
+      }
+
+      .empty-state strong {
+        color: var(--accent-muted);
+      }
+
+      .question-card {
+        margin-top: 8px;
+        padding: 16px 16px 14px;
+        border-radius: 14px;
+        border: 1px solid var(--border-subtle);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.98));
+      }
+
+      .question-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .q-index-pill {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--text-muted);
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.55);
+        background: radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.32), transparent 60%);
+      }
+
+      .question-text {
+        font-size: 15px;
+        line-height: 1.5;
+        margin-bottom: 12px;
+      }
+
+      .choices {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .choice {
+        border-radius: 12px;
+        padding: 9px 11px;
+        border: 1px solid rgba(148, 163, 184, 0.55);
+        background: radial-gradient(circle at 0 0, rgba(30, 64, 175, 0.18), rgba(15, 23, 42, 0.96));
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        cursor: pointer;
+        transition: border-color 0.14s ease, background 0.14s ease, transform 0.08s ease, box-shadow 0.1s ease;
+        font-size: 14px;
+      }
+
+      .choice:hover {
+        border-color: rgba(96, 165, 250, 0.9);
+        background: radial-gradient(circle at 0 0, rgba(37, 99, 235, 0.26), rgba(15, 23, 42, 0.98));
+        transform: translateY(-0.5px);
+        box-shadow: 0 9px 18px rgba(15, 23, 42, 0.9);
+      }
+
+      .choice-label {
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-muted);
+        min-width: 30px;
+      }
+
+      .choice-body {
+        flex: 1;
+      }
+
+      .choice-text {
+        margin-bottom: 4px;
+      }
+
+      .choice-expl {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .choice.correct {
+        border-color: rgba(74, 222, 128, 0.92);
+        background: radial-gradient(circle at 0 0, var(--accent-strong), rgba(15, 23, 42, 0.96));
+        box-shadow: 0 10px 24px rgba(22, 163, 74, 0.9);
+      }
+
+      .choice.incorrect.chosen {
+        border-color: rgba(248, 113, 113, 0.95);
+        background: radial-gradient(circle at 0 0, var(--danger-soft), rgba(15, 23, 42, 0.98));
+        box-shadow: 0 9px 20px rgba(239, 68, 68, 0.9);
+      }
+
+      .choice.disabled {
+        cursor: default;
+        opacity: 0.92;
+      }
+
+      .answer-summary {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.7);
+        background: radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.22), rgba(15, 23, 42, 0.96));
+        font-size: 13px;
+      }
+
+      .answer-summary .label {
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
+
+      .answer-summary.correct {
+        border-color: rgba(74, 222, 128, 0.92);
+        background: radial-gradient(circle at 0 0, var(--accent-soft), rgba(15, 23, 42, 0.96));
+      }
+
+      .answer-summary.incorrect {
+        border-color: rgba(248, 113, 113, 0.95);
+        background: radial-gradient(circle at 0 0, var(--danger-soft), rgba(15, 23, 42, 0.96));
+      }
+
+      .controls-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 12px;
+        gap: 10px;
+      }
+
+      .pill-text {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .next-btn {
+        border-radius: 999px;
+        border: 1px solid var(--border-strong);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 1));
+        padding: 7px 16px;
+        font-size: 13px;
+        color: var(--text);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: background 0.12s ease, transform 0.08s ease, box-shadow 0.1s ease, border-color 0.12s ease;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.95);
+      }
+
+      .next-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+        box-shadow: none;
+      }
+
+      .next-btn:not(:disabled):hover {
+        border-color: rgba(96, 165, 250, 0.9);
+        background: radial-gradient(circle at 0 0, rgba(37, 99, 235, 0.28), rgba(15, 23, 42, 1));
+        transform: translateY(-1px);
+      }
+
+      .next-btn:not(:disabled):active {
+        transform: translateY(0);
+        box-shadow: 0 7px 16px rgba(15, 23, 42, 0.96);
+      }
+
+      .next-btn .icon {
+        font-size: 16px;
+      }
+
+      .score-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 13px;
+      }
+
+      .score-header-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+      }
+
+      .score-title {
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .score-tag {
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.8);
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+
+      .score-main {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .score-number {
+        font-size: 32px;
+        font-weight: 700;
+      }
+
+      .score-number span.unit {
+        font-size: 16px;
+        color: var(--text-muted);
+        margin-left: 3px;
+      }
+
+      .history-summary {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .progress-bar-container {
+        margin-top: 10px;
+      }
+
+      .progress-track {
+        width: 100%;
+        height: 7px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(30, 64, 175, 0.5), rgba(15, 23, 42, 0.95));
+        overflow: hidden;
+        border: 1px solid rgba(30, 64, 175, 0.9);
+      }
+
+      .progress-fill {
+        height: 100%;
+        border-radius: inherit;
+        width: 0%;
+        background: linear-gradient(90deg, #4ade80, #22c55e, #a3e635);
+        box-shadow: 0 0 18px rgba(74, 222, 128, 0.9);
+        transition: width 0.18s ease-out;
+      }
+
+      .progress-label {
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--text-muted);
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+      }
+
+      .stat-block {
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.7);
+        background: radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.22), rgba(15, 23, 42, 0.96));
+        flex: 1;
+      }
+
+      .stat-block + .stat-block {
+        margin-left: 8px;
+      }
+
+      .stat-label {
+        font-size: 11px;
+        color: var(--text-muted);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+      }
+
+      .stat-value {
+        font-size: 14px;
+      }
+
+      .set-name-placeholder {
+        opacity: 0.65;
+        font-style: italic;
+      }
+
+      .pill-muted {
+        font-size: 11px;
+        color: var(--text-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <section class="panel" id="main-panel">
+        <div class="panel-header">
+          <div class="title-row">
+            <div class="frog-pill">🐸</div>
+            <div class="app-title-block">
+              <h1>Froggy Flash</h1>
+              <div class="subtitle">JSON-driven flashcards with persistent scoring</div>
+            </div>
+          </div>
+          <button class="load-btn" id="load-set-btn">
+            <span class="icon">📂</span>
+            <span>Load Flashcard Set</span>
+          </button>
+        </div>
+
+        <div class="set-meta" id="set-meta">
+          <div class="set-meta-title set-name-placeholder">No set loaded</div>
+          <div class="set-meta-desc">
+            Choose a JSON file describing your flashcards to begin a session.
+          </div>
+          <div class="set-meta-file" id="set-file-label"></div>
+        </div>
+
+        <div id="question-container">
+          <div class="empty-state" id="empty-state">
+            <p>
+              Click <strong>Load Flashcard Set</strong> to open a JSON file with your questions.
+            </p>
+            <p style="margin-top: 6px">
+              Each file should include <code>name</code>, <code>description</code>, and a
+              <code>cards</code> array. Each card defines a <code>question</code>, a
+              <code>choices</code> object (keys like <code>a</code>, <code>b</code>, <code>c</code>
+              with <code>text</code> and optional <code>explanation</code>), an <code>answer</code>
+              key (e.g. <code>"a"</code>), and an overall <code>explanation</code> for why the
+              correct answer is right.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <div class="score-panel">
+          <div class="score-header-row">
+            <div>
+              <div class="score-title">Set Score</div>
+              <div id="score-set-name" style="font-size: 13px; margin-top: 4px">
+                <span class="set-name-placeholder">No set selected</span>
+              </div>
+            </div>
+            <div class="score-tag" id="score-tag">Awaiting session</div>
+          </div>
+
+          <div class="score-main">
+            <div class="score-number" id="score-percent">0<span class="unit">%</span></div>
+            <div style="text-align: right; font-size: 12px; color: var(--text-muted)">
+              <div id="score-detail-line">0 / 0 correct</div>
+              <div id="score-last-played" style="margin-top: 4px"></div>
+            </div>
+          </div>
+
+          <div class="progress-bar-container">
+            <div class="progress-track">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-label">
+              <span>Session progress</span>
+              <span id="progress-label-right">0 / 0</span>
+            </div>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat-block">
+              <div class="stat-label">Last Session</div>
+              <div class="stat-value" id="stat-last-session">–</div>
+            </div>
+            <div class="stat-block">
+              <div class="stat-label">Best Score</div>
+              <div class="stat-value" id="stat-best-score">–</div>
+            </div>
+          </div>
+
+          <div class="history-summary" id="history-summary">
+            Load a flashcard set to start tracking your performance. Scores are saved per set name on
+            this machine.
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <script src="./renderer.js"></script>
+  </body>
+  </html>
+
+

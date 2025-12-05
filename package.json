@@ -1,0 +1,16 @@
+{
+  "name": "froggy-flash",
+  "version": "1.0.0",
+  "description": "Electron app for practicing and scoring knowledge via flashcards loaded from JSON.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^32.1.2"
+  }
+}
+
+

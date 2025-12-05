@@ -1,0 +1,45 @@
+### Node / npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+### Logs
+logs
+logs/*
+*.log
+
+### OS-generated files
+.DS_Store
+Thumbs.db
+
+### Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+### Build / output artifacts
+dist/
+out/
+build/
+release/
+tmp/
+temp/
+
+### Electron packaging
+*.asar
+dist_electron/
+release-builds/
+
+### Environment / secrets
+.env
+.env.*.local
+
+### Tests / coverage / caching
+coverage/
+.nyc_output/
+.cache/
+
+
