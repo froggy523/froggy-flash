@@ -476,6 +476,72 @@
         font-size: 11px;
         color: var(--text-muted);
       }
+
+      .session-history {
+        margin-top: 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.6);
+        background: radial-gradient(
+          circle at 0 0,
+          rgba(30, 64, 175, 0.2),
+          rgba(15, 23, 42, 0.96)
+        );
+        padding: 12px 14px;
+      }
+
+      .session-history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .session-history-title {
+        font-size: 12px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      .session-history-list {
+        max-height: 220px;
+        overflow-y: auto;
+        margin-top: 4px;
+      }
+
+      .session-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+      }
+
+      .session-row:last-child {
+        border-bottom: none;
+      }
+
+      .session-topic {
+        font-weight: 500;
+      }
+
+      .session-meta {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 2px;
+      }
+
+      .session-score {
+        font-weight: 600;
+      }
+
+      .session-empty {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-style: italic;
+        padding: 4px 0;
+      }
     </style>
   </head>
   <body>
@@ -491,7 +557,7 @@
           </div>
           <button class="load-btn" id="load-set-btn">
             <span class="icon">📂</span>
-            <span>Load Flashcard Set</span>
+            <span>New Session</span>
           </button>
         </div>
 
@@ -506,7 +572,7 @@
         <div id="question-container">
           <div class="empty-state" id="empty-state">
             <p>
-              Click <strong>Load Flashcard Set</strong> to open a JSON file with your questions.
+              Click <strong>New Session</strong> to open a JSON file and start a test.
             </p>
             <p style="margin-top: 6px">
               Each file should include <code>name</code>, <code>description</code>, and a
@@ -564,6 +630,17 @@
           <div class="history-summary" id="history-summary">
             Load a flashcard set to start tracking your performance. Scores are saved per set name on
             this machine.
+          </div>
+        </div>
+
+        <div class="session-history" id="session-history">
+          <div class="session-history-header">
+            <div class="session-history-title">Session History</div>
+          </div>
+          <div class="session-history-list" id="session-history-list">
+            <div class="session-empty" id="session-history-empty">
+              No prior sessions yet. Complete a test to see it listed here.
+            </div>
           </div>
         </div>
       </aside>

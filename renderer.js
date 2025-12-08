@@ -8,6 +8,10 @@ let currentFilePath = null;
 let currentIndex = 0;
 let currentCorrectCount = 0;
 let hasAnsweredCurrent = false;
+let activeCardIndices = null;
+let sessionHistory = [];
+let currentSessionTopic = null;
+let currentSessionStartedAt = null;
 
 function $(id) {
   return document.getElementById(id);
@@ -25,6 +29,38 @@ function formatDateTime(date) {
 function calculatePercent(correct, total) {
   if (!total) return 0;
   return Math.round((correct / total) * 100);
+}
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = array[i];
+    array[i] = array[j];
+    array[j] = tmp;
+  }
+  return array;
+}
+
+function getActiveTotalCards() {
+  if (Array.isArray(activeCardIndices) && activeCardIndices.length > 0) {
+    return activeCardIndices.length;
+  }
+  if (currentSet && Array.isArray(currentSet.cards)) {
+    return currentSet.cards.length;
+  }
+  return 0;
+}
+
+function getActiveCardAt(index) {
+  if (!currentSet || !Array.isArray(currentSet.cards)) {
+    return null;
+  }
+  if (Array.isArray(activeCardIndices) && activeCardIndices.length > 0) {
+    const realIndex = activeCardIndices[index] ?? null;
+    if (realIndex == null) return null;
+    return currentSet.cards[realIndex] || null;
+  }
+  return currentSet.cards[index] || null;
 }
 
 function updateScoreSidebar() {
@@ -57,14 +93,16 @@ function updateScoreSidebar() {
 
   const setKey = currentSet.name;
   const existing = scoresBySet[setKey];
-  const totalCards = currentSet.cards.length;
+  const totalCards = getActiveTotalCards();
   const sessionPercent = calculatePercent(currentCorrectCount, totalCards);
 
   scoreSetName.textContent = currentSet.name;
   scorePercent.innerHTML = `${sessionPercent}<span class="unit">%</span>`;
   scoreDetailLine.textContent = `${currentCorrectCount} / ${totalCards} correct`;
 
-  const progressRatio = totalCards ? (currentIndex + (hasAnsweredCurrent ? 1 : 0)) / totalCards : 0;
+  const progressRatio = totalCards
+    ? (currentIndex + (hasAnsweredCurrent ? 1 : 0)) / totalCards
+    : 0;
   const progressPercent = Math.min(100, Math.max(0, Math.round(progressRatio * 100)));
   progressFill.style.width = `${progressPercent}%`;
   progressLabelRight.textContent = `${Math.min(
@@ -108,17 +146,17 @@ function renderQuestion() {
     return;
   }
 
-  if (!currentSet.cards || currentSet.cards.length === 0) {
+  const totalCards = getActiveTotalCards();
+
+  if (!currentSet.cards || totalCards === 0) {
     container.innerHTML =
       '<div class="empty-state">This set has no cards defined.</div>';
     updateScoreSidebar();
     return;
   }
 
-  const card = currentSet.cards[currentIndex];
+  const card = getActiveCardAt(currentIndex);
   hasAnsweredCurrent = false;
-
-  const totalCards = currentSet.cards.length;
 
   const wrapper = document.createElement('div');
   wrapper.className = 'question-card';
@@ -313,7 +351,7 @@ function updateNextButtonState() {
 async function persistFinalScore() {
   if (!currentSet) return;
   const setKey = currentSet.name;
-  const total = currentSet.cards.length;
+  const total = getActiveTotalCards();
   const correct = currentCorrectCount;
   const now = new Date().toISOString();
 
@@ -346,13 +384,34 @@ async function persistFinalScore() {
     console.error('Failed to persist scores:', e);
   }
 
+  // Record full session history entry; a cancelled test never reaches here.
+  try {
+    const entry = {
+      topic: currentSessionTopic || setKey || 'Untitled topic',
+      setName: setKey || null,
+      totalQuestions: total,
+      correct,
+      finishedAt: now,
+      startedAt: currentSessionStartedAt || null
+    };
+    const res = await api.appendSessionHistory(entry);
+    if (!res || res.ok === false) {
+      console.error('Failed to append session history entry:', res && res.error);
+    } else {
+      sessionHistory.push(entry);
+      renderSessionHistory();
+    }
+  } catch (e) {
+    console.error('Failed to record session history:', e);
+  }
+
   updateScoreSidebar();
 }
 
 function showSessionSummary() {
   if (!currentSet) return;
   const container = $('question-container');
-  const total = currentSet.cards.length;
+  const total = getActiveTotalCards();
   const correct = currentCorrectCount;
   const percent = calculatePercent(correct, total);
 
@@ -404,6 +463,81 @@ async function loadScoresOnStartup() {
   updateScoreSidebar();
 }
 
+async function loadSessionHistoryOnStartup() {
+  try {
+    const loaded = await api.loadSessionHistory();
+    if (Array.isArray(loaded)) {
+      sessionHistory = loaded;
+    } else {
+      sessionHistory = [];
+    }
+  } catch (e) {
+    console.error('Failed to load session history:', e);
+    sessionHistory = [];
+  }
+  renderSessionHistory();
+}
+
+function renderSessionHistory() {
+  const listEl = $('session-history-list');
+  const emptyEl = $('session-history-empty');
+  if (!listEl) return;
+
+  listEl.innerHTML = '';
+
+  if (!sessionHistory || sessionHistory.length === 0) {
+    if (emptyEl) {
+      emptyEl.style.display = 'block';
+      listEl.appendChild(emptyEl);
+    }
+    return;
+  }
+
+  if (emptyEl) {
+    emptyEl.style.display = 'none';
+  }
+
+  // Most recent first
+  const sessions = [...sessionHistory].sort((a, b) => {
+    const tA = a.finishedAt ? new Date(a.finishedAt).getTime() : 0;
+    const tB = b.finishedAt ? new Date(b.finishedAt).getTime() : 0;
+    return tB - tA;
+  });
+
+  sessions.forEach((s) => {
+    const row = document.createElement('div');
+    row.className = 'session-row';
+
+    const left = document.createElement('div');
+    const topic = document.createElement('div');
+    topic.className = 'session-topic';
+    topic.textContent = s.topic || s.setName || 'Untitled topic';
+
+    const meta = document.createElement('div');
+    meta.className = 'session-meta';
+    const dt = s.finishedAt ? formatDateTime(s.finishedAt) : '';
+    const count = s.totalQuestions != null ? s.totalQuestions : s.total || 0;
+    meta.textContent = `${dt}${dt && count ? ' · ' : ''}${
+      count ? `${count} questions` : ''
+    }`;
+
+    left.appendChild(topic);
+    left.appendChild(meta);
+
+    const right = document.createElement('div');
+    right.className = 'session-score';
+    const total = s.totalQuestions != null ? s.totalQuestions : s.total || 0;
+    const correct = s.correct != null ? s.correct : s.lastCorrect || 0;
+    const percent = calculatePercent(correct, total);
+    right.textContent = `${percent}%`;
+
+    row.appendChild(left);
+    row.appendChild(right);
+
+    listEl.appendChild(row);
+  });
+}
+
 async function handleLoadSetClicked() {
   try {
     const result = await api.openFlashcardFile();
@@ -412,11 +546,56 @@ async function handleLoadSetClicked() {
     }
 
     const { set, filePath } = result;
+
+    // Ask for topic
+    const defaultTopic = set.name || '';
+    let topic = window.prompt('Enter a topic for this session:', defaultTopic);
+    if (topic === null) {
+      // User cancelled; do not start a test, thus no score recorded.
+      return;
+    }
+    topic = topic.trim() || defaultTopic || 'Untitled topic';
+
+    // Ask for number of questions
+    const maxQuestions = Array.isArray(set.cards) ? set.cards.length : 0;
+    if (!maxQuestions) {
+      alert('This set has no cards defined.');
+      return;
+    }
+
+    const defaultCount = Math.min(10, maxQuestions) || maxQuestions;
+    let countStr = window.prompt(
+      `How many questions? (1–${maxQuestions})`,
+      String(defaultCount || 10)
+    );
+    if (countStr === null) {
+      // User cancelled; do not start a test, thus no score recorded.
+      return;
+    }
+
+    let questionCount = parseInt(countStr, 10);
+    if (!Number.isFinite(questionCount) || questionCount <= 0) {
+      questionCount = defaultCount || maxQuestions;
+    }
+    if (questionCount > maxQuestions) {
+      questionCount = maxQuestions;
+    }
+
     currentSet = set;
     currentFilePath = filePath || null;
     currentIndex = 0;
     currentCorrectCount = 0;
     hasAnsweredCurrent = false;
+    currentSessionTopic = topic;
+    currentSessionStartedAt = new Date().toISOString();
+
+    // Randomly shuffle and take N cards for this session.
+    activeCardIndices = [];
+    for (let i = 0; i < maxQuestions; i += 1) {
+      activeCardIndices.push(i);
+    }
+    shuffleArray(activeCardIndices);
+    activeCardIndices = activeCardIndices.slice(0, questionCount);
 
     const metaName = $('set-meta');
     const setFileLabel = $('set-file-label');
@@ -448,6 +627,7 @@ window.addEventListener('DOMContentLoaded', () => {
     loadBtn.addEventListener('click', handleLoadSetClicked);
   }
   loadScoresOnStartup();
+  loadSessionHistoryOnStartup();
 });
 
 
