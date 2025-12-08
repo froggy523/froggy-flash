@@ -1,0 +1,236 @@
+{
+  "name": "Walgreens Hub – Business Objects & Processes",
+  "description": "Flashcards covering core business objects, workflows, and operational processes within Walgreens Hub Solutions and associated pharmacy operations.",
+  "cards": [
+    {
+      "question": "What is the primary business purpose of the Walgreens Hub?",
+      "choices": {
+        "a": {
+          "text": "To coordinate patient support activities such as benefits investigation, prior authorization, affordability programs, and adherence monitoring.",
+          "explanation": "This reflects the Hub's core role as a centralized patient-support and workflow coordination platform."
+        },
+        "b": {
+          "text": "To replace all specialty pharmacy locations with a fully virtual dispensing model.",
+          "explanation": "The Hub does not replace dispensing pharmacies; it supports them."
+        },
+        "c": {
+          "text": "To serve as an inventory management system for Walgreens retail stores.",
+          "explanation": "Inventory management occurs in dispensing systems, not the Hub."
+        },
+        "d": {
+          "text": "To automate prescriber credentialing and licensing workflows.",
+          "explanation": "The Hub does not perform regulatory credentialing functions."
+        }
+      },
+      "answer": "a",
+      "explanation": "Walgreens Hub Solutions centralizes high-touch patient support activities—insurance verification, PA processing, affordability, outreach, and clinical support—to accelerate time to therapy and ensure adherence."
+    },
+    {
+      "question": "What is the purpose of the Receive → Rescue → Redirect model?",
+      "choices": {
+        "a": {
+          "text": "To identify hub-eligible prescriptions and enroll patients in support programs before returning the prescription to a dispensing pharmacy.",
+          "explanation": "This is the Hub’s patient-support flow, ensuring support utilization."
+        },
+        "b": {
+          "text": "To instruct retail pharmacists on resolving medication stock shortages.",
+          "explanation": "Stock shortage workflows are outside the Hub model."
+        },
+        "c": {
+          "text": "To route calls between Twilio IVR segments for proper agent assignment.",
+          "explanation": "Twilio routing is separate from the Hub’s business model."
+        },
+        "d": {
+          "text": "To escalate financial assistance cases to manufacturers for rebate processing.",
+          "explanation": "The model is about patient support flow, not rebate escalation."
+        }
+      },
+      "answer": "a",
+      "explanation": "The Receive–Rescue–Redirect model ensures that prescriptions entering Walgreens’ network are reviewed for Hub eligibility, supported through Hub processes, and ultimately returned to dispensing pharmacies once support tasks are completed."
+    },
+    {
+      "question": "What business object represents the complete workflow state of a prescription inside Scriptly?",
+      "choices": {
+        "a": {
+          "text": "Status/Substatus",
+          "explanation": "Statuses and Substatuses track workflow stage, escalation needs, clinical steps, PA stages, etc."
+        },
+        "b": {
+          "text": "Program Type",
+          "explanation": "Program type indicates fill type (e.g., QuickStart, PAP), not workflow state."
+        },
+        "c": {
+          "text": "Provider Portal Record",
+          "explanation": "Providers use their portal, but workflow state is tracked separately."
+        },
+        "d": {
+          "text": "Patient Engagement Ticket",
+          "explanation": "Engagement tasks do not represent full workflow state."
+        }
+      },
+      "answer": "a",
+      "explanation": "Scriptly uses a detailed Status/Substatus framework to indicate where an Rx sits in intake, BI, IV, PA, Appeals, PAP, and outreach workflows—supporting reporting and turn-around-time tracking."
+    },
+    {
+      "question": "What is the purpose of the 'Program' object in Scriptly?",
+      "choices": {
+        "a": {
+          "text": "To classify the fill-type pathway for the patient such as Traditional, QuickStart, Bridge, or PAP.",
+          "explanation": "The Program object defines manufacturer-supported program types associated with an order."
+        },
+        "b": {
+          "text": "To represent the prescriber’s specialty and clinical area.",
+          "explanation": "Prescriber attributes are separate from Program."
+        },
+        "c": {
+          "text": "To define pharmacy inventory segmentation tiers.",
+          "explanation": "Inventory is not tied to Program objects."
+        },
+        "d": {
+          "text": "To define call-routing rules for Twilio Flex.",
+          "explanation": "Call routing is unrelated to clinical Program classification."
+        }
+      },
+      "answer": "a",
+      "explanation": "Programs indicate fill-type variants (QuickStart, Bridge, PAP, etc.) used to manage affordability, eligibility, and manufacturer-required data tracking across a prescription’s lifecycle."
+    },
+    {
+      "question": "Which business object identifies whether a prescription has been transferred out of the Hub to a dispensing pharmacy?",
+      "choices": {
+        "a": {
+          "text": "Referral / Rx Transfer Flag",
+          "explanation": "Referral flags record that the Hub has transferred the script to another pharmacy and continue monitoring."
+        },
+        "b": {
+          "text": "Task Template",
+          "explanation": "Tasks do not identify transfer status."
+        },
+        "c": {
+          "text": "Provider Edit Log",
+          "explanation": "This tracks provider metadata, not transfer events."
+        },
+        "d": {
+          "text": "Inventory PAR Level",
+          "explanation": "PAR levels are irrelevant to transfers."
+        }
+      },
+      "answer": "a",
+      "explanation": "The Referral flag and its sub-statuses track transferred prescriptions and maintain compliance while supporting ongoing patient outreach and assistance after transfer."
+    },
+    {
+      "question": "What is the role of the Prior Authorization (PA) workflow object?",
+      "choices": {
+        "a": {
+          "text": "To document insurer-required clinical or administrative steps needed before a specialty medication can be dispensed.",
+          "explanation": "PA workflows coordinate insurer requirements, documentation, outreach, and approvals."
+        },
+        "b": {
+          "text": "To determine medication shipping logistics for cold-chain distribution.",
+          "explanation": "Shipping is unrelated to PA approvals."
+        },
+        "c": {
+          "text": "To assign refill reminders and adherence calls on a monthly schedule.",
+          "explanation": "Those are adherence workflows, not PA workflows."
+        },
+        "d": {
+          "text": "To trigger manufacturer rebate calculations.",
+          "explanation": "Rebates are not managed inside PA workflows."
+        }
+      },
+      "answer": "a",
+      "explanation": "PA workflows include: PA Initiated → Pending HCP → Pending Insurance → Approved/Denied, with substatus variants. These are critical for enabling coverage and therapy initiation."
+    },
+    {
+      "question": "What is the purpose of the Max PA Status field?",
+      "choices": {
+        "a": {
+          "text": "To preserve the most current PA/Appeal/MTE stage even if the main prescription Status/Substatus temporarily moves to another workflow (e.g., QuickStart or Scheduling).",
+          "explanation": "Max PA Status ensures reporting accuracy when the Rx workflow diverges."
+        },
+        "b": {
+          "text": "To track the maximum number of PA attempts allowed by an insurer.",
+          "explanation": "Insurer rules are not stored in Max PA Status."
+        },
+        "c": {
+          "text": "To record the highest clinical severity level for the medication.",
+          "explanation": "Clinical severity is unrelated to PA workflows."
+        },
+        "d": {
+          "text": "To determine which agent has the highest PA completion rate.",
+          "explanation": "This is performance analytics, not PA logic."
+        }
+      },
+      "answer": "a",
+      "explanation": "Max PA Status is required because the Rx may move to other statuses (e.g., patient outreach), but reporting must still reflect ongoing PA/Appeal progress for manufacturers."
+    },
+    {
+      "question": "Which business object controls agent permissions inside Scriptly?",
+      "choices": {
+        "a": {
+          "text": "Team-based Roles",
+          "explanation": "Scriptly is transitioning to team-based permissioning, where teams define access scopes."
+        },
+        "b": {
+          "text": "Location Assignment",
+          "explanation": "Location does not grant functional permissions."
+        },
+        "c": {
+          "text": "Provider License Verification",
+          "explanation": "This applies to prescribers, not agents."
+        },
+        "d": {
+          "text": "Inventory Ownership Group",
+          "explanation": "Inventory groups are not permission sets."
+        }
+      },
+      "answer": "a",
+      "explanation": "Teams define what UI sections and actions a user can access, including intake, PA workflows, compliance tasks, dispensing review, and program management."
+    },
+    {
+      "question": "What is the purpose of the 'Dispensing SP' field in the PROMOTE referral workflow?",
+      "choices": {
+        "a": {
+          "text": "To record the pharmacy where the Hub instructs the prescription to be filled after Hub services are complete.",
+          "explanation": "Dispensing SP identifies the final dispensing location."
+        },
+        "b": {
+          "text": "To determine whether the medication should be placed on backorder.",
+          "explanation": "Backorders are not controlled via this field."
+        },
+        "c": {
+          "text": "To specify which Hub agent performed the triage.",
+          "explanation": "Triage agents are logged elsewhere."
+        },
+        "d": {
+          "text": "To select the financial assistance program used for copay support.",
+          "explanation": "Assistance programs do not use this field."
+        }
+      },
+      "answer": "a",
+      "explanation": "PROMOTE's 'Dispensing SP' field stores the pharmacy where the prescription is filled after Hub intervention, enabling auditing and preventing accidental re-transfer."
+    },
+    {
+      "question": "What does the Ingestion Queue represent in the Hub workflow?",
+      "choices": {
+        "a": {
+          "text": "The initial intake location where incoming prescriptions are timestamped and prepared for data entry and BI/IV tasks.",
+          "explanation": "Ingestion begins the formal Scriptly workflow and is used for TAT metrics."
+        },
+        "b": {
+          "text": "A queue for unassigned financial assistance cases.",
+          "explanation": "FA cases are separate from ingestion."
+        },
+        "c": {
+          "text": "A storage area for insurance plan definitions.",
+          "explanation": "Plan configs do not pass through ingestion."
+        },
+        "d": {
+          "text": "A Twilio-interrupted call queue used for callback routing.",
+          "explanation": "Twilio queues are not involved in Rx ingestion."
+        }
+      },
+      "answer": "a",
+      "explanation": "The Ingestion Queue timestamps incoming orders and supports turn-around-time calculations for Intake → BI → PA workflows."
+    }
+  ]
+}

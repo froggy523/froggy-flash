@@ -185,7 +185,8 @@ function renderQuestion() {
   const answerKey = card.answer;
 
   const choiceKeys = card.choices ? Object.keys(card.choices) : [];
-  choiceKeys.sort(); // a, b, c, ...
+  // Shuffle the possible answers so they appear in a random order each time.
+  shuffleArray(choiceKeys);
 
   let answerSummaryBox = null;
 
@@ -541,45 +542,35 @@ function renderSessionHistory() {
 async function handleLoadSetClicked() {
   try {
     const result = await api.openFlashcardFile();
-    if (!result || result.canceled) {
+    if (!result) {
+      // No response from main process – surface something visible to the user.
+      window.alert(
+        'Something went wrong while opening the deck (no response from main process). Please try again.'
+      );
+      return;
+    }
+
+    if (result.canceled) {
+      // If the main process reported an explicit error, show it instead of silently doing nothing.
+      if (result.error) {
+        window.alert(`Could not load this deck:\n\n${result.error}`);
+      }
       return;
     }
 
     const { set, filePath } = result;
 
-    // Ask for topic
-    const defaultTopic = set.name || '';
-    let topic = window.prompt('Enter a topic for this session:', defaultTopic);
-    if (topic === null) {
-      // User cancelled; do not start a test, thus no score recorded.
-      return;
-    }
-    topic = topic.trim() || defaultTopic || 'Untitled topic';
+    // Derive topic automatically (prompt() is not supported in this environment)
+    const topic = (set.name && String(set.name).trim()) || 'Untitled topic';
 
-    // Ask for number of questions
+    // Determine number of questions automatically
     const maxQuestions = Array.isArray(set.cards) ? set.cards.length : 0;
     if (!maxQuestions) {
       alert('This set has no cards defined.');
       return;
     }
 
-    const defaultCount = Math.min(10, maxQuestions) || maxQuestions;
-    let countStr = window.prompt(
-      `How many questions? (1–${maxQuestions})`,
-      String(defaultCount || 10)
-    );
-    if (countStr === null) {
-      // User cancelled; do not start a test, thus no score recorded.
-      return;
-    }
-
-    let questionCount = parseInt(countStr, 10);
-    if (!Number.isFinite(questionCount) || questionCount <= 0) {
-      questionCount = defaultCount || maxQuestions;
-    }
-    if (questionCount > maxQuestions) {
-      questionCount = maxQuestions;
-    }
+    const questionCount = Math.min(10, maxQuestions) || maxQuestions;
 
     currentSet = set;
     currentFilePath = filePath || null;

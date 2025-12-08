@@ -1,0 +1,351 @@
+{
+  "name": "PA and Appeal Workflow Deck – Expanded",
+  "description": "A comprehensive set of flashcards covering Prior Authorization, Medical Tier Exception, and Appeal workflows in Walgreens Hub/Scriptly operations.",
+  "cards": [
+    {
+      "question": "What triggers the start of a Prior Authorization (PA) workflow in the Hub?",
+      "choices": {
+        "a": {
+          "text": "When insurance requires clinical or administrative review before approving coverage for the prescribed therapy.",
+          "explanation": "Insurers require PAs to verify clinical appropriateness."
+        },
+        "b": {
+          "text": "When a prescription is transferred to an out-of-network pharmacy.",
+          "explanation": "Transfers do not automatically require a PA."
+        },
+        "c": {
+          "text": "When the patient requests a medication change due to side effects.",
+          "explanation": "This may require a new prescription, not a PA."
+        },
+        "d": {
+          "text": "When benefits investigation is skipped.",
+          "explanation": "BI and PA are related but independent steps."
+        }
+      },
+      "answer": "a",
+      "explanation": "A PA is needed when insurers require additional documentation to authorize drug coverage."
+    },
+    {
+      "question": "What is the first formal PA workflow stage after determining a PA is required?",
+      "choices": {
+        "a": {
+          "text": "PA Initiated",
+          "explanation": "Marks the start of the PA workflow."
+        },
+        "b": {
+          "text": "PA Pending Insurance",
+          "explanation": "Occurs after submission."
+        },
+        "c": {
+          "text": "PA Approved",
+          "explanation": "Represents a successful end to the PA."
+        },
+        "d": {
+          "text": "Appeal Initiated",
+          "explanation": "Occurs only after denial."
+        }
+      },
+      "answer": "a",
+      "explanation": "PA Initiated starts documentation gathering and workflow engagement."
+    },
+    {
+      "question": "During which PA stage does the Hub wait for clinical information or forms from the prescriber?",
+      "choices": {
+        "a": {
+          "text": "PA Pending HCP Completion",
+          "explanation": "This is when prescriber action is required."
+        },
+        "b": {
+          "text": "PA Pending Insurance",
+          "explanation": "Occurs after forms are sent to the insurer."
+        },
+        "c": {
+          "text": "Appeal Pending Insurance",
+          "explanation": "This is an appeal stage."
+        },
+        "d": {
+          "text": "In Process – Insurance Verification",
+          "explanation": "BI happens before PA creation."
+        }
+      },
+      "answer": "a",
+      "explanation": "Insurers often need HCP-supplied clinical data before reviewing a PA request."
+    },
+    {
+      "question": "What does the PA Pending Insurance stage represent?",
+      "choices": {
+        "a": {
+          "text": "The insurer is reviewing the PA request after receiving all necessary documentation.",
+          "explanation": "This is the waiting-for-insurer phase."
+        },
+        "b": {
+          "text": "The Hub is waiting for patient consent.",
+          "explanation": "Consent is unrelated to PA review."
+        },
+        "c": {
+          "text": "The prescription has been shipped.",
+          "explanation": "PA review precedes shipment."
+        },
+        "d": {
+          "text": "The prescriber must supply missing chart notes.",
+          "explanation": "That is PA Pending HCP Completion."
+        }
+      },
+      "answer": "a",
+      "explanation": "PA Pending Insurance means the insurer has the information and is determining coverage."
+    },
+    {
+      "question": "What typically triggers an Appeal workflow?",
+      "choices": {
+        "a": {
+          "text": "A denied PA request from the insurer.",
+          "explanation": "Appeals occur only after denial."
+        },
+        "b": {
+          "text": "A prescriber initiating a new medication order.",
+          "explanation": "New orders do not trigger appeals."
+        },
+        "c": {
+          "text": "The patient requesting financial assistance.",
+          "explanation": "FA requests are separate workflows."
+        },
+        "d": {
+          "text": "Insurance coverage changes.",
+          "explanation": "Coverage changes may require a PA, but not necessarily an appeal."
+        }
+      },
+      "answer": "a",
+      "explanation": "Appeals provide additional justification after a PA denial."
+    },
+    {
+      "question": "What is the purpose of the Max PA Status field in Scriptly?",
+      "choices": {
+        "a": {
+          "text": "To preserve the highest PA/Appeal/MTE stage reached even if workflow statuses temporarily shift.",
+          "explanation": "Prevents overwriting key PA progress data."
+        },
+        "b": {
+          "text": "To determine which agent should handle the case next.",
+          "explanation": "Assignment logic uses queues, not Max PA Status."
+        },
+        "c": {
+          "text": "To record insurer contact preferences.",
+          "explanation": "Not related to Max PA status."
+        },
+        "d": {
+          "text": "To indicate PA urgency level.",
+          "explanation": "Urgency is separate from Max PA Status."
+        }
+      },
+      "answer": "a",
+      "explanation": "Max PA Status ensures accurate reporting even when the active workflow diverges."
+    },
+    {
+      "question": "What is the purpose of the Medical Tier Exception (MTE) workflow?",
+      "choices": {
+        "a": {
+          "text": "To request payer approval to move a drug from a high-cost tier to a more affordable tier.",
+          "explanation": "MTE reduces patient cost burden."
+        },
+        "b": {
+          "text": "To override prescriber errors.",
+          "explanation": "Not related to MTE."
+        },
+        "c": {
+          "text": "To appeal pharmacy claims rejections.",
+          "explanation": "Claims rejections are separate."
+        },
+        "d": {
+          "text": "To check drug shortages.",
+          "explanation": "Shortages unrelated to MTE."
+        }
+      },
+      "answer": "a",
+      "explanation": "MTE is requested when insurers require lower-tier alternatives before covering a preferred drug."
+    },
+    {
+      "question": "How does a Level 2 Appeal differ from a Level 1 Appeal?",
+      "choices": {
+        "a": {
+          "text": "Level 2 Appeals escalate to an external or higher-level insurer review after Level 1 denial.",
+          "explanation": "Level 2 is a deeper escalation."
+        },
+        "b": {
+          "text": "Level 2 Appeals only apply to pediatric cases.",
+          "explanation": "Appeals apply across patient types."
+        },
+        "c": {
+          "text": "Level 2 Appeals skip insurer review and go to state regulators.",
+          "explanation": "Regulators are rarely involved."
+        },
+        "d": {
+          "text": "Only pharmacists may file Level 2 Appeals.",
+          "explanation": "Roles vary; the Hub coordinates documentation."
+        }
+      },
+      "answer": "a",
+      "explanation": "Level 2 is triggered when Level 1 is denied and higher-level justification is required."
+    },
+    {
+      "question": "What typically happens during an Appeal Medical Note Transcription stage?",
+      "choices": {
+        "a": {
+          "text": "The Hub records clinical rationale or chart notes needed for the appeal submission.",
+          "explanation": "These notes strengthen appeal justification."
+        },
+        "b": {
+          "text": "The insurer reviews the PA request.",
+          "explanation": "Insurer review is a later step."
+        },
+        "c": {
+          "text": "The patient selects a new pharmacy.",
+          "explanation": "Pharmacy choice is unrelated."
+        },
+        "d": {
+          "text": "The medication is shipped.",
+          "explanation": "Shipping occurs post-approval."
+        }
+      },
+      "answer": "a",
+      "explanation": "Clinical documentation must be properly formatted before appeal submission."
+    },
+    {
+      "question": "Which workflow stage indicates that the payer has approved the therapy and the Hub can proceed toward dispensing?",
+      "choices": {
+        "a": {
+          "text": "PA Approved",
+          "explanation": "Represents payer authorization."
+        },
+        "b": {
+          "text": "PA Pending HCP Completion",
+          "explanation": "Waiting for prescriber."
+        },
+        "c": {
+          "text": "Appeal Pending Insurance",
+          "explanation": "Appeal decision still pending."
+        },
+        "d": {
+          "text": "MTE Pending Insurance",
+          "explanation": "MTE approval is separate."
+        }
+      },
+      "answer": "a",
+      "explanation": "PA Approved indicates payer authorization to proceed."
+    },
+    {
+      "question": "What type of information is usually required in PA documentation?",
+      "choices": {
+        "a": {
+          "text": "Diagnosis codes, chart notes, prior therapy history, lab values if applicable.",
+          "explanation": "These justify clinical appropriateness."
+        },
+        "b": {
+          "text": "A list of the patient’s preferred pharmacies.",
+          "explanation": "Pharmacy preference does not affect PA approval."
+        },
+        "c": {
+          "text": "Documentation of insurance premium payments.",
+          "explanation": "Premium data is irrelevant."
+        },
+        "d": {
+          "text": "Copies of manufacturer marketing materials.",
+          "explanation": "Marketing materials cannot be used in PAs."
+        }
+      },
+      "answer": "a",
+      "explanation": "PA approval depends on clinical justification and supporting documentation."
+    },
+    {
+      "question": "What is the purpose of prescriber outreach during PA processing?",
+      "choices": {
+        "a": {
+          "text": "To obtain missing clinical data or signatures required for PA submission.",
+          "explanation": "Prescriber input is essential for complete PA documentation."
+        },
+        "b": {
+          "text": "To verify pharmacy inventory levels.",
+          "explanation": "Inventory is unrelated to PA outreach."
+        },
+        "c": {
+          "text": "To collect copay amounts.",
+          "explanation": "Copay collection is not a prescriber task."
+        },
+        "d": {
+          "text": "To set medication delivery preferences.",
+          "explanation": "Delivery is downstream of PA approval."
+        }
+      },
+      "answer": "a",
+      "explanation": "Prescriber outreach is required when additional clinical data must be provided before PA submission."
+    },
+    {
+      "question": "What happens in the PA Denied workflow stage?",
+      "choices": {
+        "a": {
+          "text": "The insurer has rejected the request, and the Hub determines whether an appeal is appropriate.",
+          "explanation": "Denial triggers evaluation for appeal."
+        },
+        "b": {
+          "text": "The prescription is automatically canceled.",
+          "explanation": "Cancellation is not automatic."
+        },
+        "c": {
+          "text": "The medication is dispensed with cash pay.",
+          "explanation": "Cash pay is not default behavior."
+        },
+        "d": {
+          "text": "The prescriber must submit abandonment paperwork.",
+          "explanation": "No such paperwork exists."
+        }
+      },
+      "answer": "a",
+      "explanation": "After denial, the Hub may begin appeal workflows to attempt overturning the insurer's decision."
+    },
+    {
+      "question": "What distinguishes an Appeal Pending Insurance stage from a PA Pending Insurance stage?",
+      "choices": {
+        "a": {
+          "text": "Appeal Pending Insurance follows a PA denial and involves review of additional justification.",
+          "explanation": "Appeals are escalations of denied PAs."
+        },
+        "b": {
+          "text": "Appeal Pending Insurance is reviewed faster.",
+          "explanation": "Not necessarily."
+        },
+        "c": {
+          "text": "Appeals do not require documentation.",
+          "explanation": "They require even more documentation."
+        },
+        "d": {
+          "text": "Appeals are only allowed for non-specialty medications.",
+          "explanation": "Appeals apply widely."
+        }
+      },
+      "answer": "a",
+      "explanation": "Appeals occur after denials and require enhanced justification."
+    },
+    {
+      "question": "Why might an MTE be initiated instead of a PA?",
+      "choices": {
+        "a": {
+          "text": "When the denial or cost issue is related to formulary tier placement rather than clinical criteria.",
+          "explanation": "MTE resolves tier-based restrictions."
+        },
+        "b": {
+          "text": "Because the prescription is a controlled substance.",
+          "explanation": "Controlled substances follow separate rules."
+        },
+        "c": {
+          "text": "Because the patient is uninsured.",
+          "explanation": "MTE applies only with insurance."
+        },
+        "d": {
+          "text": "Because prior attempts at adherence outreach failed.",
+          "explanation": "Outreach failures do not trigger MTE."
+        }
+      },
+      "answer": "a",
+      "explanation": "Tier exceptions target cost-tier issues instead of clinical criteria."
+    }
+  ]
+}

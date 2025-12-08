@@ -1,0 +1,788 @@
+{
+"name": "Walgreens Hub Architecture – 50 Card Deck",
+"description": "Flashcards covering the technical and logical architecture of Walgreens Hub Solutions, including Scriptly, Twilio, TransferMyRx, portals, AWS hosting, SSO, and data flows.",
+"cards": [
+{
+"question": "What is the primary architectural role of Scriptly within Walgreens Hub Solutions?",
+"choices": {
+"a": {
+"text": "It serves as the core non-dispensing pharmacy management platform that orchestrates Hub workflows, tasks, and patient-support activities.",
+"explanation": "Scriptly is the Hub’s central workflow engine, not a dispensing system."
+},
+"b": {
+"text": "It is a point-of-sale system used in all retail stores for payment processing.",
+"explanation": "Retail POS is separate from Hub architecture."
+},
+"c": {
+"text": "It is a dedicated inventory management system for specialty pharmacies only.",
+"explanation": "Inventory is not Scriptly’s primary role."
+},
+"d": {
+"text": "It is a cloud data warehouse used exclusively for analytics.",
+"explanation": "Analytics use Hub data but Scriptly itself is transactional."
+}
+},
+"answer": "a",
+"explanation": "Scriptly underpins Hub operations as a non-dispensing, workflow-focused pharmacy management platform that coordinates enrollment, PA, BI, outreach, and reporting."
+},
+{
+"question": "Which frontend technology stack does Scriptly primarily use?",
+"choices": {
+"a": {
+"text": "Vue with TypeScript, hosted behind CDN/edge services.",
+"explanation": "Scriptly uses a modern SPA built with Vue and TypeScript."
+},
+"b": {
+"text": "Classic ASP with server-side VBScript pages.",
+"explanation": "This reflects legacy tech, not Scriptly."
+},
+"c": {
+"text": "AngularJS 1.x hosted on on-prem IIS.",
+"explanation": "AngularJS 1.x is not the chosen stack."
+},
+"d": {
+"text": "Native Windows desktop client built with WPF.",
+"explanation": "Scriptly is browser-based, not a desktop app."
+}
+},
+"answer": "a",
+"explanation": "A Vue + TypeScript SPA enables rapid updates and a responsive UX while being served through modern cloud hosting and CDN layers."
+},
+{
+"question": "Which backend technology powers Scriptly’s primary API layer?",
+"choices": {
+"a": {
+"text": ".NET (modern .NET) web APIs running on Linux-based application servers.",
+"explanation": "Scriptly’s backend is implemented with modern .NET services."
+},
+"b": {
+"text": "PHP monolith hosted on a shared cPanel environment.",
+"explanation": "This does not match the Hub architecture."
+},
+"c": {
+"text": "Node.js serverless functions only.",
+"explanation": "Hub APIs are not purely serverless Node.js."
+},
+"d": {
+"text": "Mainframe COBOL applications exposed via 3270 emulation.",
+"explanation": "Legacy mainframes are not Scriptly’s core API layer."
+}
+},
+"answer": "a",
+"explanation": "Modern .NET APIs provide robust, performant services for Scriptly’s application logic and integration points."
+},
+{
+"question": "What type of database platform underlies Scriptly’s core transactional storage?",
+"choices": {
+"a": {
+"text": "Relational SQL database (Microsoft SQL Server) hosted in the cloud.",
+"explanation": "Scriptly uses a managed relational database for transactional integrity."
+},
+"b": {
+"text": "A local SQLite database on each agent workstation.",
+"explanation": "Local DBs would not support centralized workflows."
+},
+"c": {
+"text": "A schemaless document database running entirely in the browser.",
+"explanation": "This does not align with enterprise requirements."
+},
+"d": {
+"text": "A tape-based archival system accessed via batch jobs.",
+"explanation": "Tape is used for archival, not transactional operations."
+}
+},
+"answer": "a",
+"explanation": "Relational SQL storage supports strong consistency, structured workflows, and complex reporting for Hub operations."
+},
+{
+"question": "How is Scriptly primarily exposed to Hub users inside the contact center?",
+"choices": {
+"a": {
+"text": "Scriptly is embedded (iframed) inside the Twilio Flex agent desktop.",
+"explanation": "Agents interact with Scriptly directly within Flex to avoid context switching."
+},
+"b": {
+"text": "Agents SSH into Scriptly servers and run CLI tools.",
+"explanation": "This would be unusable for call center workflows."
+},
+"c": {
+"text": "Agents remote into a Citrix desktop that runs a local Scriptly EXE.",
+"explanation": "Scriptly is web-based, not a remote desktop app."
+},
+"d": {
+"text": "Scriptly is accessed only via mobile apps on agents’ phones.",
+"explanation": "Agents primarily use desktop web UIs."
+}
+},
+"answer": "a",
+"explanation": "Embedding Scriptly into Flex consolidates telephony and workflow tools into a unified agent experience."
+},
+{
+"question": "What is the primary role of Twilio Flex in Hub architecture?",
+"choices": {
+"a": {
+"text": "It acts as the cloud contact center platform handling IVR, call routing, and agent softphone functionality.",
+"explanation": "Flex is the contact center layer integrated with Scriptly."
+},
+"b": {
+"text": "It serves as the core prescription dispensing system.",
+"explanation": "Dispensing occurs in pharmacy systems, not Flex."
+},
+"c": {
+"text": "It is the main EMR used by prescribers.",
+"explanation": "Prescribers use their own EHR/EMR systems."
+},
+"d": {
+"text": "It provides SSO authentication for all Walgreens applications.",
+"explanation": "SSO is handled via Walgreens identity systems, not Flex."
+}
+},
+"answer": "a",
+"explanation": "Twilio Flex manages inbound/outbound calling, queues, and skilling, while Scriptly manages clinical and operational workflows."
+},
+{
+"question": "Which component in Twilio is used to build the Hub’s IVR and call flows?",
+"choices": {
+"a": {
+"text": "Twilio Studio and programmable voice flows.",
+"explanation": "Studio is used to design IVR call flows and logic."
+},
+"b": {
+"text": "Twilio SendGrid email workflows.",
+"explanation": "SendGrid is for email, not IVR."
+},
+"c": {
+"text": "Twilio Conversations for SMS chatbots only.",
+"explanation": "Conversations focuses on messaging, not IVR routing."
+},
+"d": {
+"text": "Twilio Frontline mobile app configurations.",
+"explanation": "Frontline is not the Hub’s IVR engine."
+}
+},
+"answer": "a",
+"explanation": "Twilio Studio orchestrates IVR branching, prompts, and integration with Scriptly APIs."
+},
+{
+"question": "What is the purpose of Twilio Voice Insights in the Hub stack?",
+"choices": {
+"a": {
+"text": "To provide diagnostics and metrics on call quality, latency, and failures.",
+"explanation": "Voice Insights helps troubleshoot and monitor voice performance."
+},
+"b": {
+"text": "To encrypt prescription data at rest.",
+"explanation": "Encryption is handled at the infrastructure and DB layer."
+},
+"c": {
+"text": "To manage user access roles in Scriptly.",
+"explanation": "Access is managed in Scriptly and identity systems."
+},
+"d": {
+"text": "To store audio files in the core transactional database.",
+"explanation": "Audio storage and monitoring are separate concerns."
+}
+},
+"answer": "a",
+"explanation": "Voice Insights allows operations and vendor teams to diagnose call issues impacting agent experiences."
+},
+{
+"question": "How are inbound phone calls generally routed into the Hub architecture?",
+"choices": {
+"a": {
+"text": "Calls hit a Walgreens-owned number, forward into a Twilio-managed number, traverse Twilio infrastructure, then terminate at the agent web client.",
+"explanation": "This describes the typical call routing path."
+},
+"b": {
+"text": "Calls terminate directly on Scriptly servers via SIP trunks.",
+"explanation": "Scriptly is not a telephony endpoint."
+},
+"c": {
+"text": "Calls are translated into emails and delivered via SMTP.",
+"explanation": "Email is not the primary inbound channel for calls."
+},
+"d": {
+"text": "Calls go through a mainframe PBX and are mirrored to Twilio only for logging.",
+"explanation": "Twilio actively handles routing, not just logging."
+}
+},
+"answer": "a",
+"explanation": "Walgreens numbers front-end the experience while Twilio manages routing and connection to agent desktops."
+},
+{
+"question": "What is the primary architectural role of TransferMyRx in the Hub ecosystem?",
+"choices": {
+"a": {
+"text": "It provides secure, structured prescription transfer capabilities between Scriptly, ScriptMed, and external pharmacies.",
+"explanation": "TMRx facilitates electronic transfers beyond manual phone/fax workflows."
+},
+"b": {
+"text": "It is an analytics-only system used for BI dashboards.",
+"explanation": "Analytics are fed by multiple sources, not solely TMRx."
+},
+"c": {
+"text": "It manages inventory levels within community pharmacies.",
+"explanation": "Inventory management is separate from TMRx."
+},
+"d": {
+"text": "It replaces SureScripts for all e-prescribing.",
+"explanation": "SureScripts remains a core prescribing network."
+}
+},
+"answer": "a",
+"explanation": "TransferMyRx provides a structured way to transfer Rx records electronically between different pharmacy systems as part of Hub workflows."
+},
+{
+"question": "When Scriptly cannot transfer a prescription via e-prescribing channels, what is the typical fallback mechanism?",
+"choices": {
+"a": {
+"text": "Manual or electronic fax to the target pharmacy.",
+"explanation": "Fax remains a key fallback when electronic transfers fail."
+},
+"b": {
+"text": "SMS text message with prescription details to the patient.",
+"explanation": "Prescription details are not sent via SMS for legal and privacy reasons."
+},
+"c": {
+"text": "Posting the prescription to a public portal without authentication.",
+"explanation": "This would be a major security violation."
+},
+"d": {
+"text": "Uploading the prescription to social media for the pharmacy to see.",
+"explanation": "Obviously not permissible."
+}
+},
+"answer": "a",
+"explanation": "When eRx and TMRx routes fail, fax workflows backstop prescription transfers within compliance constraints."
+},
+{
+"question": "Which core architectural pattern describes how Hub interacts with Walgreens’ broader pharmacy network?",
+"choices": {
+"a": {
+"text": "Receive, Rescue, Redirect model layered on top of existing Walgreens retail and specialty systems.",
+"explanation": "The Hub sits between prescriber/patient flows and downstream dispensing."
+},
+"b": {
+"text": "Hub directly replaces all existing dispensing systems with a single monolithic platform.",
+"explanation": "Hub augments, not replaces, core dispensing platforms."
+},
+"c": {
+"text": "Hub runs entirely offline with no integration to other systems.",
+"explanation": "Online integrations are essential."
+},
+"d": {
+"text": "Hub controls retail store POS, inventory, and staffing directly.",
+"explanation": "These remain within existing Walgreens platforms."
+}
+},
+"answer": "a",
+"explanation": "The Hub intercepts eligible prescriptions, applies support workflows, then returns them to dispensing locations."
+},
+{
+"question": "What is the function of the patient, provider, manufacturer, and FRM portals in the Hub architecture?",
+"choices": {
+"a": {
+"text": "They provide role-specific, external-facing access to Scriptly-managed data and workflows.",
+"explanation": "Each portal is tailored to a stakeholder’s view and needs."
+},
+"b": {
+"text": "They are simple static websites with marketing content only.",
+"explanation": "Portals are interactive and data-driven."
+},
+"c": {
+"text": "They host Walgreens’ public e-commerce store.",
+"explanation": "E-commerce is handled by other systems."
+},
+"d": {
+"text": "They replace all EMR systems used by prescribers.",
+"explanation": "Portals complement but do not replace EMRs."
+}
+},
+"answer": "a",
+"explanation": "Portals expose curated views into Hub data to support coordination across stakeholders."
+},
+{
+"question": "Which identity mechanism is used for internal Walgreens users accessing Scriptly?",
+"choices": {
+"a": {
+"text": "Walgreens OneID Single Sign-On integrated via SSO protocols.",
+"explanation": "Hub users authenticate through Walgreens’ enterprise identity provider."
+},
+"b": {
+"text": "Local Scriptly username and password accounts only.",
+"explanation": "Local accounts would create security and lifecycle issues."
+},
+"c": {
+"text": "Hard-coded credentials stored on agent desktops.",
+"explanation": "This would be highly insecure."
+},
+"d": {
+"text": "Anonymous access with IP allowlisting only.",
+"explanation": "Hub access is not anonymous."
+}
+},
+"answer": "a",
+"explanation": "OneID SSO centralizes access control, provisioning, and revocation for internal users."
+},
+{
+"question": "What happens architecturally when a user’s OneID access is revoked?",
+"choices": {
+"a": {
+"text": "Scriptly access is automatically disabled while keeping the user record for audit purposes.",
+"explanation": "Identity is upstream; Scriptly reflects that change."
+},
+"b": {
+"text": "Scriptly silently falls back to a shared generic account.",
+"explanation": "Shared accounts would break audit requirements."
+},
+"c": {
+"text": "Scriptly migrates the user to a local backup account with full rights.",
+"explanation": "This would defeat access control."
+},
+"d": {
+"text": "Nothing changes in Scriptly; the user can still log in indefinitely.",
+"explanation": "This would violate security policies."
+}
+},
+"answer": "a",
+"explanation": "Tight coupling between OneID and Scriptly ensures timely revocation of access while preserving audit history."
+},
+{
+"question": "How is data in transit typically protected within Hub architecture?",
+"choices": {
+"a": {
+"text": "By enforcing HTTPS/TLS encryption on web and API traffic.",
+"explanation": "TLS is standard for securing data in transit."
+},
+"b": {
+"text": "By sending all traffic over unencrypted HTTP inside a VPN only.",
+"explanation": "VPN alone is not sufficient for PHI-grade security."
+},
+"c": {
+"text": "By storing all data on local desktops instead of transmitting it.",
+"explanation": "Hub requires communication; local-only is not realistic."
+},
+"d": {
+"text": "By emailing raw PHI between systems on internal email servers.",
+"explanation": "Email is not a primary integration channel for PHI."
+}
+},
+"answer": "a",
+"explanation": "TLS across web and API endpoints is required to protect PHI and sensitive data in transit."
+},
+{
+"question": "How is data at rest typically protected for Scriptly’s core database and file storage?",
+"choices": {
+"a": {
+"text": "Using cloud-native encryption-at-rest mechanisms (e.g., DB and storage volume encryption).",
+"explanation": "Managed services encrypt data at rest with platform keys or customer-managed keys."
+},
+"b": {
+"text": "Relying only on obscurity of database table names.",
+"explanation": "Security by obscurity is not sufficient."
+},
+"c": {
+"text": "Storing unencrypted PHI on developer laptops.",
+"explanation": "Local unencrypted PHI is prohibited."
+},
+"d": {
+"text": "Writing all PHI to plain-text log files on each agent machine.",
+"explanation": "Plain-text PHI on endpoints is unacceptable."
+}
+},
+"answer": "a",
+"explanation": "Encryption-at-rest is a fundamental requirement for PHI in the cloud."
+},
+{
+"question": "What is the role of audit logging in Scriptly’s architecture?",
+"choices": {
+"a": {
+"text": "To capture all changes to key entities and events for compliance, traceability, and investigation.",
+"explanation": "Detailed audit logs support regulatory and operational needs."
+},
+"b": {
+"text": "To store marketing metrics like website clicks and ad impressions.",
+"explanation": "Scriptly logs focus on operational events, not marketing analytics."
+},
+"c": {
+"text": "To replace database backups.",
+"explanation": "Audit logs and backups serve different purposes."
+},
+"d": {
+"text": "To randomly delete old patient records for storage savings.",
+"explanation": "Record retention follows defined policies, not random deletion."
+}
+},
+"answer": "a",
+"explanation": "Audit logging is essential for regulated healthcare workflows and internal controls."
+},
+{
+"question": "Which browsers are officially supported for accessing Scriptly at the Hub?",
+"choices": {
+"a": {
+"text": "Microsoft Edge and Google Chrome.",
+"explanation": "Walgreens standardizes on Edge but also supports Chrome."
+},
+"b": {
+"text": "Only Internet Explorer 8.",
+"explanation": "IE8 is deprecated and unsupported."
+},
+"c": {
+"text": "Only Safari on iOS.",
+"explanation": "Mobile browsers are not the primary agent platform."
+},
+"d": {
+"text": "Only Firefox ESR.",
+"explanation": "Firefox is not the documented standard."
+}
+},
+"answer": "a",
+"explanation": "Edge is the corporate standard; Chrome is supported for compatibility."
+},
+{
+"question": "Where is Scriptly’s frontend typically hosted in the cloud architecture?",
+"choices": {
+"a": {
+"text": "On object storage (e.g., S3) fronted by a CDN or edge network.",
+"explanation": "Static SPA assets are ideal for CDN-backed hosting."
+},
+"b": {
+"text": "On each agent workstation as a local file share.",
+"explanation": "Local hosting would be impossible to maintain."
+},
+"c": {
+"text": "Directly from a relational database via dynamic HTML generation.",
+"explanation": "This is not how SPAs are delivered."
+},
+"d": {
+"text": "On a tape drive accessed by a web gateway.",
+"explanation": "Tape is unsuitable for serving live web assets."
+}
+},
+"answer": "a",
+"explanation": "Hosting SPAs on object storage behind a CDN improves performance and resilience."
+},
+{
+"question": "What component shields Scriptly APIs from direct exposure to the public internet while providing performance benefits?",
+"choices": {
+"a": {
+"text": "An edge or reverse-proxy layer (e.g., Cloudflare or similar).",
+"explanation": "Reverse proxies handle TLS, caching, and security policies at the edge."
+},
+"b": {
+"text": "Direct RDP access from external IPs.",
+"explanation": "RDP should never front APIs to the public."
+},
+"c": {
+"text": "A consumer home router at the data center.",
+"explanation": "Consumer routers are not enterprise edge devices."
+},
+"d": {
+"text": "Plain HTTP listeners exposed on port 80 only.",
+"explanation": "Unprotected HTTP is not acceptable."
+}
+},
+"answer": "a",
+"explanation": "Reverse-proxy/CDN layers protect, accelerate, and observe API traffic."
+},
+{
+"question": "How does the Hub ensure that Twilio support is managed without Walgreens directly holding a Twilio SLA?",
+"choices": {
+"a": {
+"text": "Scriptly acts as the sole escalation and support interface for Twilio-related issues.",
+"explanation": "Walgreens routes Twilio problems through Scriptly’s support model."
+},
+"b": {
+"text": "Walgreens disables Twilio monitoring entirely.",
+"explanation": "Monitoring is crucial and not disabled."
+},
+"c": {
+"text": "Twilio provides direct access to its internal engineering chat to all Hub agents.",
+"explanation": "This is not how vendor relationships operate."
+},
+"d": {
+"text": "Hub agents open tickets directly in Twilio’s developer forums.",
+"explanation": "Support flows through the Scriptly vendor relationship."
+}
+},
+"answer": "a",
+"explanation": "Scriptly owns the Twilio relationship so Hub teams can work with a single vendor for both app and telephony issues."
+},
+{
+"question": "What is the architectural relationship between PROMOTE and the Hub?",
+"choices": {
+"a": {
+"text": "PROMOTE supports community store workflows and acts as a touchpoint for routing referrals into or from the Hub.",
+"explanation": "PROMOTE is part of the broader routing ecosystem."
+},
+"b": {
+"text": "PROMOTE is a replacement for Scriptly inside the Hub.",
+"explanation": "Scriptly is the Hub platform; PROMOTE lives in the community store side."
+},
+"c": {
+"text": "PROMOTE is the primary contact center telephony platform.",
+"explanation": "Telephony is handled by Twilio Flex."
+},
+"d": {
+"text": "PROMOTE is a cloud data warehouse used for analytics only.",
+"explanation": "PROMOTE is more than just analytics."
+}
+},
+"answer": "a",
+"explanation": "PROMOTE helps community pharmacies interact with Hub-eligible drugs and referrals."
+},
+{
+"question": "How are community store prescriptions identified as Hub-eligible in the architecture?",
+"choices": {
+"a": {
+"text": "By configuration and manual selection in systems like PROMOTE that flag referrals to the Hub.",
+"explanation": "Config-driven plus human workflows determine Hub routing."
+},
+"b": {
+"text": "By a hard-coded list in each store’s local spreadsheet only.",
+"explanation": "Pure spreadsheets are not the authoritative mechanism."
+},
+"c": {
+"text": "By scanning QR codes on prescription bottles generated by the Hub.",
+"explanation": "This is not the described workflow."
+},
+"d": {
+"text": "By social media posts from patients indicating they want Hub support.",
+"explanation": "Social media is not part of eligibility detection."
+}
+},
+"answer": "a",
+"explanation": "Config and manual workflows inside community systems route Hub-eligible Rxs into Hub processes."
+},
+{
+"question": "How does the Hub architecture support manufacturers’ need for real-time dashboards and reporting?",
+"choices": {
+"a": {
+"text": "By aggregating Scriptly workflow data and exposing it through manufacturer and FRM portals.",
+"explanation": "Portals provide near real-time insights into patient journeys."
+},
+"b": {
+"text": "By emailing weekly static spreadsheets only.",
+"explanation": "Static spreadsheets alone would not be considered modern real-time reporting."
+},
+"c": {
+"text": "By providing direct read-write access to the transactional database.",
+"explanation": "External parties should not have direct DB access."
+},
+"d": {
+"text": "By posting raw PHI publicly and letting manufacturers scrape it.",
+"explanation": "This would be completely non-compliant."
+}
+},
+"answer": "a",
+"explanation": "Manufacturers get curated, compliant visibility through role-specific portals rather than direct DB access."
+},
+{
+"question": "Which component of the architecture provides call recording and workforce management capabilities?",
+"choices": {
+"a": {
+"text": "A workforce management and recording platform (e.g., Verint) integrated with the contact center stack.",
+"explanation": "Verint-type tools cover call recording and WFM."
+},
+"b": {
+"text": "The core Scriptly transactional database.",
+"explanation": "Scriptly stores workflow data, not WFM and audio."
+},
+"c": {
+"text": "The manufacturer portal.",
+"explanation": "Portals are for external stakeholders, not WFM."
+},
+"d": {
+"text": "The retail POS system.",
+"explanation": "POS systems do not perform call recording."
+}
+},
+"answer": "a",
+"explanation": "Call recording and workforce management are typically handled by specialized platforms integrated with Twilio Flex."
+},
+{
+"question": "Why is Scriptly described as a non-dispensing pharmacy system in the Hub architecture?",
+"choices": {
+"a": {
+"text": "Because it focuses on patient support workflows, enrollment, PA, and triage, while final dispensing occurs in separate pharmacy systems.",
+"explanation": "Hub separates support from actual dispensing."
+},
+"b": {
+"text": "Because it cannot see any prescription information at all.",
+"explanation": "Scriptly absolutely manages script workflows."
+},
+"c": {
+"text": "Because it only handles cash payments.",
+"explanation": "Financial flows are not limited to cash."
+},
+"d": {
+"text": "Because it runs offline without any network.",
+"explanation": "It is a cloud and network-dependent system."
+}
+},
+"answer": "a",
+"explanation": "This separation allows Hub to operate as a centralized support engine without replacing existing dispensing platforms."
+},
+{
+"question": "How does the Hub architecture support multiple points of patient entry across the Walgreens network?",
+"choices": {
+"a": {
+"text": "By integrating with retail and specialty pharmacies, call center channels, and digital portals, all feeding eligible Rxs into Scriptly workflows.",
+"explanation": "Hub centralizes support from multiple entry points."
+},
+"b": {
+"text": "By requiring all patients to call a single 1-800 number only.",
+"explanation": "There are multiple entry channels."
+},
+"c": {
+"text": "By forcing all Rxs to go through a single specialty pharmacy.",
+"explanation": "Hub supports multiple dispensing endpoints."
+},
+"d": {
+"text": "By disabling e-prescribing so that only paper scripts are accepted.",
+"explanation": "E-prescribing remains a key channel."
+}
+},
+"answer": "a",
+"explanation": "A multi-entry architecture allows Hub to capture more patients who might otherwise bypass support programs."
+},
+{
+"question": "Which of the following best describes the Hub’s segregation of environments?",
+"choices": {
+"a": {
+"text": "Separate environments (e.g., non-prod and prod) with controlled access to protect PHI and maintain change management discipline.",
+"explanation": "Segregated environments are critical in regulated healthcare systems."
+},
+"b": {
+"text": "A single production environment used for development, testing, and training.",
+"explanation": "This would violate best practices and risk data integrity."
+},
+"c": {
+"text": "Developer laptops acting as the primary production servers.",
+"explanation": "Production workloads do not run on laptops."
+},
+"d": {
+"text": "A test environment exposed publicly without authentication for convenience.",
+"explanation": "Unauthenticated test environments with PHI would be unacceptable."
+}
+},
+"answer": "a",
+"explanation": "Proper environment segregation minimizes risk and aligns with enterprise change management and PHI protection requirements."
+},
+{
+"question": "How is skilling and queue assignment handled for calls in the Hub?",
+"choices": {
+"a": {
+"text": "Within Twilio Flex, which assigns calls to agent queues based on defined skills and attributes.",
+"explanation": "Flex manages skilling and queue logic for voice."
+},
+"b": {
+"text": "By manually emailing a list of calls to agents.",
+"explanation": "Email is not a real-time routing mechanism."
+},
+"c": {
+"text": "By selecting random agents each time a call arrives.",
+"explanation": "Random assignment would break SLAs."
+},
+"d": {
+"text": "By letting patients choose any agent directly in the portal.",
+"explanation": "Patients do not pick individual agents."
+}
+},
+"answer": "a",
+"explanation": "Skilling in Flex ensures calls reach agents with appropriate capabilities for specific workflows."
+},
+{
+"question": "What integration point allows IVR flows to interact with Scriptly workflows?",
+"choices": {
+"a": {
+"text": "APIs exposed by Scriptly that Twilio Studio or backend services can call to create or update records.",
+"explanation": "API integration enables IVR-driven workflow changes."
+},
+"b": {
+"text": "Direct access from Twilio Studio to Scriptly’s SQL tables.",
+"explanation": "Studio does not directly touch DBs."
+},
+"c": {
+"text": "File drops on agent desktops processed manually.",
+"explanation": "Manual file drops would not be real-time."
+},
+"d": {
+"text": "Screen scraping of Scriptly pages by Twilio.",
+"explanation": "Screen scraping is brittle and not the integration pattern."
+}
+},
+"answer": "a",
+"explanation": "Scriptly APIs allow IVR actions (e.g., capturing DTMF responses) to be translated into workflow updates."
+},
+{
+"question": "Why does the Hub rely on structured tasks and queues rather than ad-hoc email requests to manage work?",
+"choices": {
+"a": {
+"text": "Tasks and queues provide traceability, SLA management, routing, and reporting for operational work.",
+"explanation": "Architecture must support observability and control."
+},
+"b": {
+"text": "Email is prohibited by all regulators in healthcare.",
+"explanation": "Email is allowed but insufficient as the core work engine."
+},
+"c": {
+"text": "Agents do not have email accounts.",
+"explanation": "Agents may have email but work is managed via systems."
+},
+"d": {
+"text": "Queues exist only for historical reasons and are never used.",
+"explanation": "Queues are actively used to run operations."
+}
+},
+"answer": "a",
+"explanation": "An architecture based on tasks and queues ensures reliable, auditable operational workflows."
+},
+{
+"question": "How does the Hub architecture support HIPAA-compliant consent capture?",
+"choices": {
+"a": {
+"text": "By recording consent events and documents within Scriptly workflows and storing them in secure, auditable systems.",
+"explanation": "Consent must be recorded and auditable."
+},
+"b": {
+"text": "By assuming consent for all patients once they fill any prescription at Walgreens.",
+"explanation": "Consent cannot be presumed."
+},
+"c": {
+"text": "By verbally confirming consent without recording it anywhere.",
+"explanation": "Unrecorded verbal consent is not sufficient for audit."
+},
+"d": {
+"text": "By placing a short notice on social media and treating all likes as consent.",
+"explanation": "Social media interactions are not consent."
+}
+},
+"answer": "a",
+"explanation": "Consent capture is integrated into workflows and storage so it can be verified for compliance and reporting."
+},
+{
+"question": "Which statement best describes the boundary between Hub architecture and Walgreens’ core retail systems?",
+"choices": {
+"a": {
+"text": "The Hub operates as an overlay and integration layer, connecting to but not replacing retail dispensing, POS, and EMR systems.",
+"explanation": "Hub extends capabilities rather than rewriting the enterprise core."
+},
+"b": {
+"text": "The Hub fully replaces all retail systems, which are decommissioned.",
+"explanation": "Retail systems remain essential."
+},
+"c": {
+"text": "The Hub has no connection at all to retail systems and operates in isolation.",
+"explanation": "Hub must integrate to be effective."
+},
+"d": {
+"text": "The Hub takes direct control of store staffing, scheduling, and payroll.",
+"explanation": "These functions stay outside Hub scope."
+}
+},
+"answer": "a",
+"explanation": "Hub architecture is designed to augment core systems and leverage Walgreens’ nationwide footprint while adding high-touch support workflows."
+}
+]
+}

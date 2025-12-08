@@ -1,0 +1,650 @@
+{
+  "name": "Scriptly & Hub Tasks – 30 Card Deck",
+  "description": "A comprehensive flashcard deck covering Scriptly Task objects, task workflows, routing, templates, and operational rules within Walgreens Hub.",
+  "cards": [
+    {
+      "question": "What is the primary purpose of a Task in Scriptly?",
+      "choices": {
+        "a": {
+          "text": "To represent a discrete, trackable action needed to move a prescription or patient case forward.",
+          "explanation": "Tasks are structured action items tied to workflow progression."
+        },
+        "b": {
+          "text": "To store insurance plan metadata.",
+          "explanation": "Insurance data is not stored as tasks."
+        },
+        "c": {
+          "text": "To control medication inventory levels.",
+          "explanation": "Inventory is handled in dispensing systems."
+        },
+        "d": {
+          "text": "To assign pharmacist credentials.",
+          "explanation": "Credentials are not managed via Tasks."
+        }
+      },
+      "answer": "a",
+      "explanation": "Scriptly Tasks represent actionable steps required for workflow movement and operational tracking."
+    },
+    {
+      "question": "Which business object defines preconfigured sets of steps for creating standardized tasks?",
+      "choices": {
+        "a": {
+          "text": "Task Templates",
+          "explanation": "Templates define logic, routing, and fields for tasks."
+        },
+        "b": {
+          "text": "Program Types",
+          "explanation": "Programs define therapy pathways, not task patterns."
+        },
+        "c": {
+          "text": "Teams",
+          "explanation": "Teams control permissions, not task structure."
+        },
+        "d": {
+          "text": "Workflow Stages",
+          "explanation": "Stages describe status, not template logic."
+        }
+      },
+      "answer": "a",
+      "explanation": "Task Templates ensure standardized, repeatable task creation across workflows."
+    },
+    {
+      "question": "When are Tasks automatically generated in Scriptly?",
+      "choices": {
+        "a": {
+          "text": "When business rules or workflow transitions require follow-up actions, such as missing information or insurance outreach.",
+          "explanation": "Many tasks are rule-generated based on workflow checks."
+        },
+        "b": {
+          "text": "Whenever a pharmacist logs in.",
+          "explanation": "Login events do not generate tasks."
+        },
+        "c": {
+          "text": "When inventory drops below threshold.",
+          "explanation": "Inventory alerts are not Scriptly tasks."
+        },
+        "d": {
+          "text": "When a drug is discontinued nationally.",
+          "explanation": "Drug status changes do not auto-create Scriptly tasks."
+        }
+      },
+      "answer": "a",
+      "explanation": "Tasks are often auto-created based on workflow rules and triggers."
+    },
+    {
+      "question": "Which object assigns Tasks to specific work queues within Scriptly?",
+      "choices": {
+        "a": {
+          "text": "Task Category or Assigned Queue",
+          "explanation": "Each task routes into an appropriate queue."
+        },
+        "b": {
+          "text": "Drug Configuration",
+          "explanation": "Drug config does not assign tasks."
+        },
+        "c": {
+          "text": "Refill Request Batch",
+          "explanation": "Unrelated to task routing."
+        },
+        "d": {
+          "text": "Label Templates",
+          "explanation": "Label templates format printed output."
+        }
+      },
+      "answer": "a",
+      "explanation": "Tasks route into categorized queues according to business logic and templates."
+    },
+    {
+      "question": "What happens when a Task is marked as completed?",
+      "choices": {
+        "a": {
+          "text": "The workflow may advance to the next stage if the task was a gating requirement.",
+          "explanation": "Many statuses depend on task completion."
+        },
+        "b": {
+          "text": "The prescription is shipped automatically.",
+          "explanation": "Completion does not trigger shipment."
+        },
+        "c": {
+          "text": "The patient is automatically discharged from the program.",
+          "explanation": "Programs are not controlled via Tasks."
+        },
+        "d": {
+          "text": "All related tasks are closed regardless of status.",
+          "explanation": "Tasks do not auto-close siblings."
+        }
+      },
+      "answer": "a",
+      "explanation": "Tasks may be workflow prerequisites, enabling stage advancement upon completion."
+    },
+    {
+      "question": "Which type of Task is typically created when clinical documentation is needed from a prescriber?",
+      "choices": {
+        "a": {
+          "text": "HCP Outreach Task",
+          "explanation": "Used for requesting missing clinical info."
+        },
+        "b": {
+          "text": "Dispensing Queue Task",
+          "explanation": "Dispensing is separate from clinical outreach."
+        },
+        "c": {
+          "text": "Call Log Entry",
+          "explanation": "Call logs are not tasks."
+        },
+        "d": {
+          "text": "Inventory Batch Task",
+          "explanation": "Unrelated to prescriber documentation."
+        }
+      },
+      "answer": "a",
+      "explanation": "HCP outreach tasks request clinical data needed for PA, appeals, or clarification."
+    },
+    {
+      "question": "Which Task category most often triggers PA-related follow-ups?",
+      "choices": {
+        "a": {
+          "text": "PA Documentation Task",
+          "explanation": "These support PA submission requirements."
+        },
+        "b": {
+          "text": "Shipping Verification Task",
+          "explanation": "Shipping occurs after approval."
+        },
+        "c": {
+          "text": "Patient Payment Method Task",
+          "explanation": "Financial tasks are separate."
+        },
+        "d": {
+          "text": "Store Routing Task",
+          "explanation": "Routing tasks occur downstream."
+        }
+      },
+      "answer": "a",
+      "explanation": "PA workflows rely on documentation tasks to complete submission packets."
+    },
+    {
+      "question": "Why do Task Templates often include default assignment rules?",
+      "choices": {
+        "a": {
+          "text": "To ensure tasks are routed to the correct operational team automatically.",
+          "explanation": "Templates route tasks to appropriate queues."
+        },
+        "b": {
+          "text": "To require all tasks be completed by pharmacists.",
+          "explanation": "Tasks may be fulfilled by various roles."
+        },
+        "c": {
+          "text": "To assign tasks randomly to distribute workload.",
+          "explanation": "Assignments are not random."
+        },
+        "d": {
+          "text": "To bypass queue logic.",
+          "explanation": "Templates rely on queue logic—they do not bypass it."
+        }
+      },
+      "answer": "a",
+      "explanation": "Templates embed routing logic to support workflow consistency."
+    },
+    {
+      "question": "What is the purpose of SLA priorities in Tasks?",
+      "choices": {
+        "a": {
+          "text": "To indicate urgency and required completion time for operational compliance.",
+          "explanation": "SLA priority guides workload sequencing."
+        },
+        "b": {
+          "text": "To define patient income eligibility.",
+          "explanation": "Eligibility is unrelated to task priority."
+        },
+        "c": {
+          "text": "To determine insurance billing amounts.",
+          "explanation": "Billing is independent of SLAs."
+        },
+        "d": {
+          "text": "To specify the drug’s therapeutic class.",
+          "explanation": "Therapeutic class is not tied to tasks."
+        }
+      },
+      "answer": "a",
+      "explanation": "SLA priority dictates how quickly tasks must be completed."
+    },
+    {
+      "question": "Which Task type is typically associated with obtaining missing insurance information?",
+      "choices": {
+        "a": {
+          "text": "Insurance Outreach Task",
+          "explanation": "These tasks are used to contact insurers or obtain missing plan details."
+        },
+        "b": {
+          "text": "Patient Assessment Task",
+          "explanation": "Assessments are not insurance-specific."
+        },
+        "c": {
+          "text": "Clarification Dispense Task",
+          "explanation": "These address prescription issues."
+        },
+        "d": {
+          "text": "PAP Document Management Task",
+          "explanation": "Unrelated to insurance outreach."
+        }
+      },
+      "answer": "a",
+      "explanation": "Insurance outreach tasks support BI and IV processes requiring insurer contact."
+    },
+    {
+      "question": "Which Task type is most commonly created when patient demographic information is missing?",
+      "choices": {
+        "a": {
+          "text": "Patient Outreach Task",
+          "explanation": "Created to collect missing patient information."
+        },
+        "b": {
+          "text": "Billing Queue Task",
+          "explanation": "Billing does not resolve demographic issues."
+        },
+        "c": {
+          "text": "PA Submission Task",
+          "explanation": "PA submission requires completed demographics."
+        },
+        "d": {
+          "text": "Shipping Confirmation Task",
+          "explanation": "Shipping is downstream."
+        }
+      },
+      "answer": "a",
+      "explanation": "Patient outreach tasks gather missing information needed for workflow progression."
+    },
+    {
+      "question": "Which statement best describes a multi-step Task?",
+      "choices": {
+        "a": {
+          "text": "A task with embedded subtasks or checklists that must be completed before marking the task complete.",
+          "explanation": "Some tasks represent multi-action workflows."
+        },
+        "b": {
+          "text": "A task that automatically recreates itself upon completion.",
+          "explanation": "Tasks do not self-replicate."
+        },
+        "c": {
+          "text": "A task that requires pharmacist approval only.",
+          "explanation": "Role-specific tasks can be single-step."
+        },
+        "d": {
+          "text": "A task that bypasses queues.",
+          "explanation": "All tasks route through queues."
+        }
+      },
+      "answer": "a",
+      "explanation": "Multi-step tasks often use checklists or sequential subtasks."
+    },
+    {
+      "question": "Which operation most commonly generates Follow-Up Tasks?",
+      "choices": {
+        "a": {
+          "text": "Failed outreach attempts (patient or prescriber).",
+          "explanation": "Follow-up tasks track retries and escalation."
+        },
+        "b": {
+          "text": "Successful claim adjudication.",
+          "explanation": "Success does not require follow-up."
+        },
+        "c": {
+          "text": "Drug inventory reconciliation.",
+          "explanation": "Inventory is separate."
+        },
+        "d": {
+          "text": "Auto-fax routing to downstream stores.",
+          "explanation": "Fax routing is not a task trigger."
+        }
+      },
+      "answer": "a",
+      "explanation": "Failed outreach often requires structured follow-up tasks."
+    },
+    {
+      "question": "Why might Task dependencies be configured?",
+      "choices": {
+        "a": {
+          "text": "To ensure prerequisite steps are completed before another task can begin.",
+          "explanation": "Dependencies ensure correct workflow sequencing."
+        },
+        "b": {
+          "text": "To allow tasks to be completed in any order.",
+          "explanation": "The opposite of dependencies."
+        },
+        "c": {
+          "text": "To automatically override user permissions.",
+          "explanation": "Permissions are not managed via tasks."
+        },
+        "d": {
+          "text": "To eliminate queues entirely.",
+          "explanation": "Queues remain essential."
+        }
+      },
+      "answer": "a",
+      "explanation": "Some tasks cannot start until upstream actions are complete."
+    },
+    {
+      "question": "Which team is most likely to receive a PA Documentation Task by default?",
+      "choices": {
+        "a": {
+          "text": "Prior Authorization Team",
+          "explanation": "They manage PA documentation and submission."
+        },
+        "b": {
+          "text": "Dispensing Team",
+          "explanation": "Dispensing occurs after approval."
+        },
+        "c": {
+          "text": "Inventory Team",
+          "explanation": "Inventory tasks are different."
+        },
+        "d": {
+          "text": "Pharmacy Management",
+          "explanation": "Management may oversee but not perform PA tasks."
+        }
+      },
+      "answer": "a",
+      "explanation": "PA tasks route to PA specialists by template logic."
+    },
+    {
+      "question": "Which Task type is commonly created when a PA denial occurs?",
+      "choices": {
+        "a": {
+          "text": "Appeal Preparation Task",
+          "explanation": "Denials often require appeals."
+        },
+        "b": {
+          "text": "Shipping Queue Task",
+          "explanation": "Shipping does not occur during denials."
+        },
+        "c": {
+          "text": "Program Reassignment Task",
+          "explanation": "Program reassignment is separate."
+        },
+        "d": {
+          "text": "Copay Card Enrollment Task",
+          "explanation": "Financial programs are unrelated to denial itself."
+        }
+      },
+      "answer": "a",
+      "explanation": "Appeal preparation tasks gather necessary documentation for resubmission."
+    },
+    {
+      "question": "Which Task is most frequently used when insurance requests additional justification?",
+      "choices": {
+        "a": {
+          "text": "Clinical Documentation Task",
+          "explanation": "This provides supplemental clinical data."
+        },
+        "b": {
+          "text": "Inventory Adjust Task",
+          "explanation": "Inventory unrelated."
+        },
+        "c": {
+          "text": "Call Recording Review Task",
+          "explanation": "Call reviews occur separately."
+        },
+        "d": {
+          "text": "Billing Reconciliation Task",
+          "explanation": "Billing reconciliation is financial, not clinical."
+        }
+      },
+      "answer": "a",
+      "explanation": "Insurers often require additional clinical detail for PA or Appeal decisions."
+    },
+    {
+      "question": "What kind of Task is created when a prior authorization form must be faxed to a prescriber?",
+      "choices": {
+        "a": {
+          "text": "HCP Fax Task",
+          "explanation": "Faxing PA forms is a common task."
+        },
+        "b": {
+          "text": "Patient Counseling Task",
+          "explanation": "Counseling happens elsewhere."
+        },
+        "c": {
+          "text": "Return-to-Stock Task",
+          "explanation": "Inventory is independent."
+        },
+        "d": {
+          "text": "Shipping Label Task",
+          "explanation": "Shipping is unrelated."
+        }
+      },
+      "answer": "a",
+      "explanation": "Fax tasks are generated when prescriber action is needed via fax."
+    },
+    {
+      "question": "Which Task is typically created when patient affordability documentation is incomplete?",
+      "choices": {
+        "a": {
+          "text": "Financial Assistance Outreach Task",
+          "explanation": "FA requires collecting income/insurance details."
+        },
+        "b": {
+          "text": "Dispensing Verification Task",
+          "explanation": "Dispensing is later."
+        },
+        "c": {
+          "text": "Inventory Hold Task",
+          "explanation": "Unrelated to affordability."
+        },
+        "d": {
+          "text": "Appeal Review Task",
+          "explanation": "Appeals occur for PA denials, not FA."
+        }
+      },
+      "answer": "a",
+      "explanation": "FA outreach tasks gather missing affordability data."
+    },
+    {
+      "question": "Which statement best describes a Task Queue?",
+      "choices": {
+        "a": {
+          "text": "A grouping of tasks assigned to a specific team or workflow category.",
+          "explanation": "Queues organize operational workload."
+        },
+        "b": {
+          "text": "A set of PA denial reasons.",
+          "explanation": "Denial reasons are separate objects."
+        },
+        "c": {
+          "text": "A list of drugs associated with the Hub.",
+          "explanation": "Drugs are unrelated to tasks."
+        },
+        "d": {
+          "text": "A record of patient payment history.",
+          "explanation": "Payment history does not use queues."
+        }
+      },
+      "answer": "a",
+      "explanation": "Queue placement determines which team works the task."
+    },
+    {
+      "question": "Which Task type would be triggered by missing chart notes?",
+      "choices": {
+        "a": {
+          "text": "Clinical Documentation Request Task",
+          "explanation": "Chart notes are requested via clinical documentation tasks."
+        },
+        "b": {
+          "text": "Patient Refill Task",
+          "explanation": "Refills are separate."
+        },
+        "c": {
+          "text": "Inventory Restock Task",
+          "explanation": "Chart notes have nothing to do with inventory."
+        },
+        "d": {
+          "text": "Shipping Approval Task",
+          "explanation": "Shipping occurs after approvals."
+        }
+      },
+      "answer": "a",
+      "explanation": "Chart notes are clinical documentation requirements."
+    },
+    {
+      "question": "Which Task type typically appears in compliance workflows?",
+      "choices": {
+        "a": {
+          "text": "Audit Tracking Task",
+          "explanation": "Compliance uses audit tracking."
+        },
+        "b": {
+          "text": "Drug Reconstitution Task",
+          "explanation": "Not a compliance function."
+        },
+        "c": {
+          "text": "Copay Card Funding Task",
+          "explanation": "Financial tasks are unrelated."
+        },
+        "d": {
+          "text": "Shipping Cart Build Task",
+          "explanation": "Physical workflows differ."
+        }
+      },
+      "answer": "a",
+      "explanation": "Compliance often generates audit tasks for review and documentation."
+    },
+    {
+      "question": "Which Task is created when a prescriber clarifies or corrects an ePrescribing error?",
+      "choices": {
+        "a": {
+          "text": "Rx Clarification Task",
+          "explanation": "Clarification tasks resolve discrepancies."
+        },
+        "b": {
+          "text": "PA Denial Task",
+          "explanation": "Denials relate to insurance."
+        },
+        "c": {
+          "text": "PAP Eligibility Task",
+          "explanation": "Unrelated to prescription clarification."
+        },
+        "d": {
+          "text": "Call Quality Review Task",
+          "explanation": "Call QA is unrelated."
+        }
+      },
+      "answer": "a",
+      "explanation": "Clarification tasks address missing or contradictory prescription details."
+    },
+    {
+      "question": "Which action most commonly causes Tasks to be requeued?",
+      "choices": {
+        "a": {
+          "text": "A change in workflow status requiring a different operational team to handle the task.",
+          "explanation": "Routing changes often requeue tasks."
+        },
+        "b": {
+          "text": "Patient updating their address.",
+          "explanation": "Address changes rarely requeue tasks."
+        },
+        "c": {
+          "text": "Inventory cycle counts.",
+          "explanation": "Inventory processes do not affect task queues."
+        },
+        "d": {
+          "text": "Shipping label reprinting.",
+          "explanation": "Reprints do not cause requeues."
+        }
+      },
+      "answer": "a",
+      "explanation": "Task routing responds to workflow transitions and team assignments."
+    },
+    {
+      "question": "Which Task type is most common at the start of the Benefits Investigation workflow?",
+      "choices": {
+        "a": {
+          "text": "Insurance Verification Task",
+          "explanation": "BI often begins with verification tasks."
+        },
+        "b": {
+          "text": "Appeal Processing Task",
+          "explanation": "Appeals occur later."
+        },
+        "c": {
+          "text": "Patient Fulfillment Task",
+          "explanation": "Fulfillment is downstream."
+        },
+        "d": {
+          "text": "Clinical Intervention Task",
+          "explanation": "Intervention tasks occur later if needed."
+        }
+      },
+      "answer": "a",
+      "explanation": "Insurance verification tasks confirm benefits and restrictions."
+    },
+    {
+      "question": "What distinguishes a Task from a Status/Substatus in Scriptly?",
+      "choices": {
+        "a": {
+          "text": "Tasks represent actions to complete; Status/Substatus represents the workflow stage.",
+          "explanation": "Statuses describe where the case is; tasks describe what needs to be done."
+        },
+        "b": {
+          "text": "Tasks store clinical data; Status stores financial data.",
+          "explanation": "Neither is true."
+        },
+        "c": {
+          "text": "Tasks are only visible to managers; statuses are hidden.",
+          "explanation": "Visibility differs."
+        },
+        "d": {
+          "text": "Status automatically completes tasks.",
+          "explanation": "Status changes do not auto-complete tasks."
+        }
+      },
+      "answer": "a",
+      "explanation": "Statuses reflect workflow state; tasks reflect actionable items within that state."
+    },
+    {
+      "question": "Why do some Tasks require mandatory notes?",
+      "choices": {
+        "a": {
+          "text": "To document actions for compliance, auditing, or payer justification.",
+          "explanation": "Documentation is required in regulated workflows."
+        },
+        "b": {
+          "text": "To store patient marketing preferences.",
+          "explanation": "Marketing is unrelated."
+        },
+        "c": {
+          "text": "To attach prescription images.",
+          "explanation": "Images may be attached elsewhere."
+        },
+        "d": {
+          "text": "To satisfy reporting quotas.",
+          "explanation": "Notes serve operational needs, not quotas."
+        }
+      },
+      "answer": "a",
+      "explanation": "Mandatory notes ensure traceability and compliance."
+    },
+    {
+      "question": "Which statement best describes an escalated Task?",
+      "choices": {
+        "a": {
+          "text": "A task reassigned to a higher-tier queue due to urgency, SLA violation, or repeated failed attempts.",
+          "explanation": "Escalation is based on urgency or workflow blockage."
+        },
+        "b": {
+          "text": "A task sent to the pharmacist automatically.",
+          "explanation": "Escalation is not necessarily pharmacist-only."
+        },
+        "c": {
+          "text": "A task that cannot be completed.",
+          "explanation": "Escalation is not abandonment."
+        },
+        "d": {
+          "text": "A task that cancels all related tasks.",
+          "explanation": "Escalated tasks do not cancel siblings."
+        }
+      },
+      "answer": "a",
+      "explanation": "Escalation ensures time-sensitive or stalled tasks receive prompt attention."
+    }
+  ]
+}

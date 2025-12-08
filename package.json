@@ -4,12 +4,14 @@
   "description": "Electron app for practicing and scoring knowledge via flashcards loaded from JSON.",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "package": "electron-packager . Froggy-Flash --platform=win32 --arch=x64 --out=dist --overwrite"
   },
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^32.1.2"
+    "electron": "^32.1.2",
+    "electron-packager": "^17.1.2"
   }
 }
 
