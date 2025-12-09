@@ -5,7 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "package": "electron-packager . Froggy-Flash --platform=win32 --arch=x64 --out=dist --overwrite",
+    "package": "electron-packager . Froggy-Flash --platform=win32 --arch=x64 --out=dist --overwrite --icon=\"images/Cards x32.png\"",
+    "predist": "node scripts/generate-icon.js",
     "dist": "electron-builder --win nsis"
   },
   "author": "",
@@ -16,8 +17,10 @@
   },
   "devDependencies": {
     "electron": "^32.1.2",
+    "electron-builder": "^24.13.3",
     "electron-packager": "^17.1.2",
-    "electron-builder": "^24.13.3"
+    "jimp": "^1.6.0",
+    "png-to-ico": "^3.0.1"
   },
   "build": {
     "appId": "com.froggy.flash",
@@ -31,13 +34,15 @@
       "!node_modules/.cache/**"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "images/Cards.ico"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "images/Cards.ico",
+      "uninstallerIcon": "images/Cards.ico",
+      "installerHeaderIcon": "images/Cards.ico"
     }
   }
 }
-
-
