@@ -7,7 +7,11 @@
     "start": "electron .",
     "package": "electron-packager . Froggy-Flash --platform=win32 --arch=x64 --out=dist --overwrite --icon=\"images/Cards x32.png\"",
     "predist": "node scripts/generate-icon.js",
-    "dist": "electron-builder --win nsis"
+    "dist": "electron-builder --win nsis --config electron-builder.config.cjs",
+    "release:bump-build": "node scripts/bump-build.js",
+    "version:bump:patch": "node scripts/bump-version.js patch",
+    "version:bump:minor": "node scripts/bump-version.js minor",
+    "version:bump:major": "node scripts/bump-version.js major"
   },
   "author": "",
   "license": "MIT",
