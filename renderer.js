@@ -2,6 +2,35 @@
 
 const api = window.froggyApi;
 
+if (typeof marked !== 'undefined' && typeof marked.setOptions === 'function') {
+  marked.setOptions({ gfm: true, breaks: true });
+}
+
+/**
+ * Renders card question text as GitHub-flavored Markdown into `el` (sanitized).
+ * Falls back to plain text if libraries are missing.
+ */
+function setQuestionMarkdown(el, source) {
+  const md = source != null ? String(source) : '';
+  el.classList.add('markdown-body');
+  if (!md.trim()) {
+    el.innerHTML = '';
+    el.textContent = '(no question text)';
+    return;
+  }
+  if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+    try {
+      const html = marked.parse(md);
+      el.innerHTML = DOMPurify.sanitize(html);
+      return;
+    } catch (err) {
+      console.warn('Question markdown render failed:', err);
+    }
+  }
+  el.innerHTML = '';
+  el.textContent = md;
+}
+
 let scoresBySet = {};
 let scoresByDeck = {};
 let currentSet = null;
@@ -15,6 +44,8 @@ let currentSessionTopic = null;
 let currentSessionStartedAt = null;
 let availableDecks = [];
 let selectedDeckId = null;
+/** Deck manifest paths (`*.deck.json`) with expanded children in the sidebar tree. */
+let expandedDeckIds = new Set();
 let isResizingDeckPanel = false;
 let deckResizeStartX = 0;
 let deckResizeStartWidth = 0;
@@ -264,7 +295,7 @@ function renderQuestion() {
 
   const qText = document.createElement('div');
   qText.className = 'question-text';
-  qText.textContent = card.question || '(no question text)';
+  setQuestionMarkdown(qText, card.question);
 
   const choicesContainer = document.createElement('div');
   choicesContainer.className = 'choices';
@@ -633,6 +664,28 @@ async function loadScoresOnStartup() {
   updateScoreSidebar();
 }
 
+function getDefaultSelectedSetPath(decks) {
+  if (!Array.isArray(decks)) return null;
+  for (let i = 0; i < decks.length; i += 1) {
+    const d = decks[i];
+    if (Array.isArray(d.sets) && d.sets.length > 0) {
+      return d.sets[0].id;
+    }
+    if (d.sets == null) {
+      return d.id;
+    }
+  }
+  return null;
+}
+
+function toggleDeckExpanded(deckManifestPath) {
+  if (expandedDeckIds.has(deckManifestPath)) {
+    expandedDeckIds.delete(deckManifestPath);
+  } else {
+    expandedDeckIds.add(deckManifestPath);
+  }
+}
+
 async function loadSessionHistoryOnStartup() {
   try {
     const loaded = await api.loadSessionHistory();
@@ -671,41 +724,134 @@ function renderDeckList() {
   if (emptyEl) {
     emptyEl.style.display = 'none';
   }
+
+  let setCount = 0;
+  availableDecks.forEach((d) => {
+    if (Array.isArray(d.sets)) {
+      setCount += d.sets.length;
+    } else if (d.sets == null) {
+      setCount += 1;
+    }
+  });
+
   if (statusEl) {
-    statusEl.textContent = `${availableDecks.length} deck${
-      availableDecks.length === 1 ? '' : 's'
-    }`;
+    const deckLabel = `${availableDecks.length} deck${availableDecks.length === 1 ? '' : 's'}`;
+    const setLabel = `${setCount} set${setCount === 1 ? '' : 's'}`;
+    statusEl.textContent = `${deckLabel} · ${setLabel}`;
+  }
+
+  function applySelectionHighlight() {
+    listEl.querySelectorAll('[data-set-path]').forEach((el) => {
+      const p = el.getAttribute('data-set-path');
+      if (p === selectedDeckId) {
+        el.classList.add('selected');
+      } else {
+        el.classList.remove('selected');
+      }
+    });
   }
 
   availableDecks.forEach((deck) => {
-    const item = document.createElement('div');
-    item.className = 'deck-item';
-    item.setAttribute('data-id', deck.id);
+    const isStructured = Array.isArray(deck.sets);
+    if (!isStructured) {
+      const item = document.createElement('div');
+      item.className = 'deck-item deck-tree-flat';
+      item.setAttribute('data-set-path', deck.id);
 
-    const nameEl = document.createElement('div');
-    nameEl.className = 'deck-item-name';
-    nameEl.textContent = deck.name || deck.fileName || 'Untitled deck';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'deck-item-name';
+      nameEl.textContent = deck.name || deck.fileName || 'Untitled deck';
 
-    item.appendChild(nameEl);
+      item.appendChild(nameEl);
 
-    if (deck.id === selectedDeckId) {
-      item.classList.add('selected');
+      if (deck.id === selectedDeckId) {
+        item.classList.add('selected');
+      }
+
+      item.addEventListener('click', () => {
+        selectedDeckId = deck.id;
+        applySelectionHighlight();
+      });
+
+      listEl.appendChild(item);
+      return;
     }
 
-    item.addEventListener('click', () => {
-      selectedDeckId = deck.id;
-      // Re-render selection state without rebuilding score/sidebar.
-      const siblings = listEl.querySelectorAll('.deck-item');
-      siblings.forEach((el) => {
-        if (el.getAttribute('data-id') === deck.id) {
-          el.classList.add('selected');
-        } else {
-          el.classList.remove('selected');
-        }
-      });
-    });
+    const wrap = document.createElement('div');
+    wrap.className = 'deck-tree-deck';
 
-    listEl.appendChild(item);
+    const expanded = expandedDeckIds.has(deck.id);
+    const setRows = deck.sets;
+
+    const header = document.createElement('div');
+    header.className = 'deck-tree-deck-header';
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'deck-tree-toggle';
+    toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    toggle.textContent = expanded ? '▼' : '▶';
+
+    const title = document.createElement('div');
+    title.className = 'deck-tree-deck-title';
+    title.textContent = deck.name || deck.fileName || 'Untitled deck';
+
+    const countPill = document.createElement('span');
+    countPill.className = 'deck-tree-deck-count';
+    countPill.textContent = `${setRows.length}`;
+
+    header.appendChild(toggle);
+    header.appendChild(title);
+    header.appendChild(countPill);
+
+    const onHeaderActivate = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleDeckExpanded(deck.id);
+      renderDeckList();
+    };
+
+    header.addEventListener('click', onHeaderActivate);
+
+    const children = document.createElement('div');
+    children.className = 'deck-tree-children';
+    children.hidden = !expanded;
+
+    if (!setRows.length) {
+      const emptySet = document.createElement('div');
+      emptySet.className = 'deck-tree-empty-sets';
+      emptySet.textContent =
+        'No card set JSON files in this deck\'s folder. Add .json files (with name + cards) there.';
+      children.appendChild(emptySet);
+    } else {
+      setRows.forEach((setInfo) => {
+        const row = document.createElement('div');
+        row.className = 'deck-item deck-tree-set';
+        row.setAttribute('data-set-path', setInfo.id);
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'deck-item-name';
+        nameEl.textContent = setInfo.name || setInfo.fileName || 'Untitled set';
+
+        row.appendChild(nameEl);
+
+        if (setInfo.id === selectedDeckId) {
+          row.classList.add('selected');
+        }
+
+        row.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedDeckId = setInfo.id;
+          applySelectionHighlight();
+        });
+
+        children.appendChild(row);
+      });
+    }
+
+    wrap.appendChild(header);
+    wrap.appendChild(children);
+    listEl.appendChild(wrap);
   });
 }
 
@@ -719,16 +865,22 @@ async function loadDeckListOnStartup() {
     const decks = await api.listDecks();
     if (Array.isArray(decks)) {
       availableDecks = decks;
-      if (availableDecks.length > 0) {
-        selectedDeckId = availableDecks[0].id;
-      }
+      expandedDeckIds = new Set();
+      availableDecks.forEach((d) => {
+        if (Array.isArray(d.sets) && d.sets.length > 0) {
+          expandedDeckIds.add(d.id);
+        }
+      });
+      selectedDeckId = getDefaultSelectedSetPath(availableDecks);
     } else {
       availableDecks = [];
+      expandedDeckIds = new Set();
       selectedDeckId = null;
     }
   } catch (e) {
     console.error('Failed to load deck list:', e);
     availableDecks = [];
+    expandedDeckIds = new Set();
     selectedDeckId = null;
   }
 
@@ -923,7 +1075,9 @@ function renderSessionHistory() {
 async function handleLoadSetClicked() {
   try {
     if (!selectedDeckId) {
-      window.alert('Please select a deck from the list on the left before starting a new session.');
+      window.alert(
+        'Please expand a deck and select a card set on the left before starting a new session.'
+      );
       return;
     }
 
@@ -942,26 +1096,62 @@ async function handleLoadSetClicked() {
   }
 }
 
-async function handleBrowseDeckClicked() {
+function getModalRoot() {
+  return document.getElementById('modal-root');
+}
+
+function closeAllModals() {
+  window.removeEventListener('keydown', onModalEscapeKey);
+  const root = getModalRoot();
+  if (root) {
+    const open = root.querySelector('.modal-overlay');
+    if (open && typeof open._froggyUpdateUnsub === 'function') {
+      try {
+        open._froggyUpdateUnsub();
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    root.innerHTML = '';
+  }
+  document.body.style.overflow = '';
+}
+
+function onModalEscapeKey(e) {
+  if (e.key === 'Escape') {
+    closeAllModals();
+  }
+}
+
+function mountModalOverlay(overlay) {
+  const root = getModalRoot();
+  if (!root) return;
+  closeAllModals();
+  root.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  overlay.classList.add('is-open');
+  window.addEventListener('keydown', onModalEscapeKey);
+}
+
+async function openExternalJsonSession() {
   try {
     const result = await api.openFlashcardFile();
     if (!result) {
       window.alert(
-        'Something went wrong while opening the deck (no response from main process). Please try again.'
+        'Something went wrong while opening the file (no response from main process). Please try again.'
       );
       return;
     }
 
     if (result.canceled) {
       if (result.error) {
-        window.alert(`Could not load this deck:\n\n${result.error}`);
+        window.alert(`Could not load this file:\n\n${result.error}`);
       }
       return;
     }
 
     const { set, filePath } = result;
 
-    // Add or update a temporary deck entry for this path so it can be reselected.
     if (filePath) {
       const existingIndex = availableDecks.findIndex((d) => d.id === filePath);
       const displayName = (set.name && String(set.name)) || 'Untitled deck';
@@ -970,7 +1160,8 @@ async function handleBrowseDeckClicked() {
       const deckEntry = {
         id: filePath,
         name: displayName,
-        fileName
+        fileName,
+        sets: null
       };
 
       if (existingIndex >= 0) {
@@ -984,8 +1175,1089 @@ async function handleBrowseDeckClicked() {
 
     startSessionFromSet(set, filePath);
   } catch (e) {
-    console.error('Failed to browse and load deck:', e);
+    console.error('Failed to open flashcard file:', e);
   }
+}
+
+function isStructuredDeck(deck) {
+  return deck && Array.isArray(deck.sets);
+}
+
+async function openCardSetEditorModal(filePath, onAfterSave) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'modal-dialog modal-wide';
+
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+  const title = document.createElement('div');
+  title.className = 'modal-title';
+  title.textContent = 'Edit card set JSON';
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'modal-close';
+  closeBtn.textContent = 'Close';
+  closeBtn.addEventListener('click', () => {
+    closeAllModals();
+  });
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'modal-body';
+
+  const ta = document.createElement('textarea');
+  ta.className = 'modal-textarea';
+  ta.spellcheck = false;
+  body.appendChild(ta);
+
+  const hint = document.createElement('div');
+  hint.className = 'modal-hint';
+  hint.textContent =
+    'Must match Froggy Flash format: name, description (optional), cards with question, choices, answer, explanation per card.';
+  body.appendChild(hint);
+
+  const footer = document.createElement('div');
+  footer.className = 'modal-footer';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'modal-btn';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => closeAllModals());
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'modal-btn modal-btn-primary';
+  save.textContent = 'Save';
+  save.addEventListener('click', async () => {
+    try {
+      const res = await api.writeCardSetFile({ filePath, content: ta.value });
+      if (!res || !res.ok) {
+        window.alert(res && res.error ? res.error : 'Save failed.');
+        return;
+      }
+      closeAllModals();
+      if (typeof onAfterSave === 'function') {
+        await onAfterSave();
+      }
+    } catch (err) {
+      console.error(err);
+      window.alert('Save failed.');
+    }
+  });
+  footer.appendChild(cancel);
+  footer.appendChild(save);
+
+  dialog.appendChild(header);
+  dialog.appendChild(body);
+  dialog.appendChild(footer);
+  overlay.appendChild(dialog);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeAllModals();
+    }
+  });
+
+  mountModalOverlay(overlay);
+
+  try {
+    const res = await api.readCardSetFile(filePath);
+    if (!res || !res.ok) {
+      window.alert(res && res.error ? res.error : 'Could not read file.');
+      closeAllModals();
+      return;
+    }
+    ta.value = res.content;
+  } catch (e) {
+    console.error(e);
+    window.alert('Could not read file.');
+    closeAllModals();
+  }
+}
+
+async function openGenerateSetModal(deckManifestPath, onDone) {
+  const settings = await api.loadLlmSettings();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'modal-dialog modal-wide';
+
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+  const title = document.createElement('div');
+  title.className = 'modal-title';
+  title.textContent = 'Generate card set with LLM';
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'modal-close';
+  closeBtn.textContent = 'Close';
+  closeBtn.addEventListener('click', () => closeAllModals());
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'modal-body';
+
+  const topicWrap = document.createElement('div');
+  topicWrap.className = 'modal-field';
+  const topicLabel = document.createElement('label');
+  topicLabel.textContent = 'Topic (be as detailed as possible)';
+  const topicTa = document.createElement('textarea');
+  topicTa.className = 'modal-textarea';
+  topicTa.style.minHeight = '160px';
+  topicTa.placeholder =
+    'Example: "Intermediate TypeScript: generics with constraints, conditional types, and inference with array/object examples; common pitfalls."';
+  topicWrap.appendChild(topicLabel);
+  topicWrap.appendChild(topicTa);
+
+  const numWrap = document.createElement('div');
+  numWrap.className = 'modal-field';
+  const numLabel = document.createElement('label');
+  numLabel.textContent = 'Number of cards (1–50)';
+  const numInput = document.createElement('input');
+  numInput.type = 'number';
+  numInput.className = 'modal-input';
+  numInput.min = '1';
+  numInput.max = '50';
+  numInput.value = String(
+    settings && Number.isFinite(settings.defaultNumCards) ? settings.defaultNumCards : 10
+  );
+  numWrap.appendChild(numLabel);
+  numWrap.appendChild(numInput);
+
+  const status = document.createElement('div');
+  status.className = 'modal-hint';
+  status.textContent = `Provider: ${settings.provider === 'openai' ? 'OpenAI' : 'Ollama'}. Adjust in Settings (top right).`;
+
+  body.appendChild(topicWrap);
+  body.appendChild(numWrap);
+  body.appendChild(status);
+
+  const footer = document.createElement('div');
+  footer.className = 'modal-footer';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'modal-btn';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => closeAllModals());
+  const run = document.createElement('button');
+  run.type = 'button';
+  run.className = 'modal-btn modal-btn-primary';
+  run.textContent = 'Generate';
+  run.addEventListener('click', async () => {
+    const topic = topicTa.value.trim();
+    if (!topic) {
+      window.alert('Please enter a topic.');
+      return;
+    }
+    const n = parseInt(numInput.value, 10);
+    run.disabled = true;
+    cancel.disabled = true;
+    run.textContent = 'Working…';
+    try {
+      const res = await api.generateCardSetViaLlm({
+        deckManifestPath,
+        topic,
+        numCards: n
+      });
+      if (!res || !res.ok) {
+        window.alert(res && res.error ? res.error : 'Generation failed.');
+        run.disabled = false;
+        cancel.disabled = false;
+        run.textContent = 'Generate';
+        return;
+      }
+      closeAllModals();
+      if (typeof onDone === 'function') {
+        await onDone();
+      }
+      window.alert(`Saved new card set:\n\n${res.filePath || ''}`);
+    } catch (e) {
+      console.error(e);
+      window.alert('Generation failed.');
+      run.disabled = false;
+      cancel.disabled = false;
+      run.textContent = 'Generate';
+    }
+  });
+  footer.appendChild(cancel);
+  footer.appendChild(run);
+
+  dialog.appendChild(header);
+  dialog.appendChild(body);
+  dialog.appendChild(footer);
+  overlay.appendChild(dialog);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeAllModals();
+    }
+  });
+
+  mountModalOverlay(overlay);
+}
+
+async function openLlmSettingsModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'modal-dialog';
+
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+  const title = document.createElement('div');
+  title.className = 'modal-title';
+  title.textContent = 'Settings';
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'modal-close';
+  closeBtn.textContent = 'Close';
+  closeBtn.addEventListener('click', () => closeAllModals());
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'modal-body';
+
+  const tabBar = document.createElement('div');
+  tabBar.className = 'settings-tab-bar';
+  tabBar.setAttribute('role', 'tablist');
+
+  const tabLlm = document.createElement('button');
+  tabLlm.type = 'button';
+  tabLlm.className = 'settings-tab is-active';
+  tabLlm.setAttribute('role', 'tab');
+  tabLlm.setAttribute('aria-selected', 'true');
+  tabLlm.setAttribute('id', 'settings-tab-llm');
+  tabLlm.textContent = 'LLM';
+
+  const tabUpdates = document.createElement('button');
+  tabUpdates.type = 'button';
+  tabUpdates.className = 'settings-tab';
+  tabUpdates.setAttribute('role', 'tab');
+  tabUpdates.setAttribute('aria-selected', 'false');
+  tabUpdates.setAttribute('id', 'settings-tab-updates');
+  tabUpdates.textContent = 'Updates';
+
+  tabBar.appendChild(tabLlm);
+  tabBar.appendChild(tabUpdates);
+
+  const llmPanel = document.createElement('div');
+  llmPanel.className = 'settings-tab-panel is-active';
+  llmPanel.setAttribute('role', 'tabpanel');
+  llmPanel.setAttribute('aria-labelledby', 'settings-tab-llm');
+
+  const providerWrap = document.createElement('div');
+  providerWrap.className = 'modal-field';
+  const providerLabel = document.createElement('label');
+  providerLabel.textContent = 'Provider';
+  const providerSel = document.createElement('select');
+  providerSel.className = 'modal-select';
+  [['ollama', 'Ollama (local)'], ['openai', 'OpenAI']].forEach(([v, label]) => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = label;
+    providerSel.appendChild(opt);
+  });
+  providerWrap.appendChild(providerLabel);
+  providerWrap.appendChild(providerSel);
+
+  const ollamaUrlWrap = document.createElement('div');
+  ollamaUrlWrap.className = 'modal-field';
+  const ollamaUrlLabel = document.createElement('label');
+  ollamaUrlLabel.textContent = 'Ollama base URL';
+  const ollamaUrl = document.createElement('input');
+  ollamaUrl.className = 'modal-input';
+  ollamaUrl.type = 'text';
+  ollamaUrlWrap.appendChild(ollamaUrlLabel);
+  ollamaUrlWrap.appendChild(ollamaUrl);
+
+  const ollamaModelWrap = document.createElement('div');
+  ollamaModelWrap.className = 'modal-field';
+  const ollamaModelLabel = document.createElement('label');
+  ollamaModelLabel.textContent = 'Ollama model';
+  const ollamaModel = document.createElement('input');
+  ollamaModel.className = 'modal-input';
+  ollamaModel.type = 'text';
+  ollamaModelWrap.appendChild(ollamaModelLabel);
+  ollamaModelWrap.appendChild(ollamaModel);
+
+  const openaiUrlWrap = document.createElement('div');
+  openaiUrlWrap.className = 'modal-field';
+  const openaiUrlLabel = document.createElement('label');
+  openaiUrlLabel.textContent = 'OpenAI-compatible API base URL';
+  const openaiUrl = document.createElement('input');
+  openaiUrl.className = 'modal-input';
+  openaiUrl.type = 'text';
+  openaiUrlWrap.appendChild(openaiUrlLabel);
+  openaiUrlWrap.appendChild(openaiUrl);
+
+  const openaiModelWrap = document.createElement('div');
+  openaiModelWrap.className = 'modal-field';
+  const openaiModelLabel = document.createElement('label');
+  openaiModelLabel.textContent = 'OpenAI model';
+  const openaiModel = document.createElement('input');
+  openaiModel.className = 'modal-input';
+  openaiModel.type = 'text';
+  openaiModelWrap.appendChild(openaiModelLabel);
+  openaiModelWrap.appendChild(openaiModel);
+
+  const apiKeyWrap = document.createElement('div');
+  apiKeyWrap.className = 'modal-field';
+  const apiKeyLabel = document.createElement('label');
+  apiKeyLabel.textContent = 'OpenAI API key (stored locally on this machine)';
+  const apiKey = document.createElement('input');
+  apiKey.className = 'modal-input';
+  apiKey.type = 'password';
+  apiKey.autocomplete = 'off';
+  apiKeyWrap.appendChild(apiKeyLabel);
+  apiKeyWrap.appendChild(apiKey);
+
+  const defaultNumWrap = document.createElement('div');
+  defaultNumWrap.className = 'modal-field';
+  const defaultNumLabel = document.createElement('label');
+  defaultNumLabel.textContent = 'Default number of cards when generating';
+  const defaultNum = document.createElement('input');
+  defaultNum.className = 'modal-input';
+  defaultNum.type = 'number';
+  defaultNum.min = '1';
+  defaultNum.max = '50';
+  defaultNumWrap.appendChild(defaultNumLabel);
+  defaultNumWrap.appendChild(defaultNum);
+
+  llmPanel.appendChild(providerWrap);
+  llmPanel.appendChild(ollamaUrlWrap);
+  llmPanel.appendChild(ollamaModelWrap);
+  llmPanel.appendChild(openaiUrlWrap);
+  llmPanel.appendChild(openaiModelWrap);
+  llmPanel.appendChild(apiKeyWrap);
+  llmPanel.appendChild(defaultNumWrap);
+
+  const updatesPanel = document.createElement('div');
+  updatesPanel.className = 'settings-tab-panel';
+  updatesPanel.setAttribute('role', 'tabpanel');
+  updatesPanel.setAttribute('aria-labelledby', 'settings-tab-updates');
+
+  const versionRow = document.createElement('div');
+  versionRow.className = 'modal-field';
+  const versionLabel = document.createElement('div');
+  versionLabel.className = 'modal-hint';
+  versionLabel.style.fontSize = '13px';
+  versionLabel.style.color = 'var(--text)';
+  versionLabel.textContent = '…';
+  versionRow.appendChild(versionLabel);
+
+  const updateHint = document.createElement('div');
+  updateHint.className = 'modal-hint';
+  updateHint.style.marginTop = '10px';
+  updateHint.textContent =
+    'The installed app checks for updates shortly after you open it. Your release host must serve latest.yml next to the installer.';
+
+  const updateStatus = document.createElement('div');
+  updateStatus.className = 'modal-hint';
+  updateStatus.style.marginTop = '12px';
+  updateStatus.style.minHeight = '2.5em';
+  updateStatus.textContent = '';
+
+  const updateActions = document.createElement('div');
+  updateActions.className = 'modal-field';
+  updateActions.style.display = 'flex';
+  updateActions.style.flexWrap = 'wrap';
+  updateActions.style.gap = '10px';
+  updateActions.style.alignItems = 'center';
+  const checkUpdatesBtn = document.createElement('button');
+  checkUpdatesBtn.type = 'button';
+  checkUpdatesBtn.className = 'modal-btn';
+  checkUpdatesBtn.textContent = 'Check for updates';
+  const restartInstallBtn = document.createElement('button');
+  restartInstallBtn.type = 'button';
+  restartInstallBtn.className = 'modal-btn modal-btn-primary';
+  restartInstallBtn.textContent = 'Restart to install';
+  restartInstallBtn.style.display = 'none';
+  updateActions.appendChild(checkUpdatesBtn);
+  updateActions.appendChild(restartInstallBtn);
+
+  updatesPanel.appendChild(versionRow);
+  updatesPanel.appendChild(updateHint);
+  updatesPanel.appendChild(updateStatus);
+  updatesPanel.appendChild(updateActions);
+
+  function setSettingsActiveTab(which) {
+    const llm = which === 'llm';
+    tabLlm.classList.toggle('is-active', llm);
+    tabLlm.setAttribute('aria-selected', llm ? 'true' : 'false');
+    tabUpdates.classList.toggle('is-active', !llm);
+    tabUpdates.setAttribute('aria-selected', !llm ? 'true' : 'false');
+    llmPanel.classList.toggle('is-active', llm);
+    updatesPanel.classList.toggle('is-active', !llm);
+  }
+
+  tabLlm.addEventListener('click', () => setSettingsActiveTab('llm'));
+  tabUpdates.addEventListener('click', () => setSettingsActiveTab('updates'));
+
+  body.appendChild(tabBar);
+  body.appendChild(llmPanel);
+  body.appendChild(updatesPanel);
+
+  const footer = document.createElement('div');
+  footer.className = 'modal-footer';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'modal-btn';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => closeAllModals());
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'modal-btn modal-btn-primary';
+  save.textContent = 'Save';
+  save.addEventListener('click', async () => {
+    let dn = parseInt(defaultNum.value, 10);
+    if (!Number.isFinite(dn) || dn < 1) dn = 10;
+    if (dn > 50) dn = 50;
+    const payload = {
+      provider: providerSel.value === 'openai' ? 'openai' : 'ollama',
+      ollamaBaseUrl: ollamaUrl.value.trim(),
+      ollamaModel: ollamaModel.value.trim(),
+      openaiBaseUrl: openaiUrl.value.trim(),
+      openaiModel: openaiModel.value.trim(),
+      apiKey: apiKey.value,
+      defaultNumCards: dn
+    };
+    const res = await api.saveLlmSettings(payload);
+    if (!res || !res.ok) {
+      window.alert(res && res.error ? res.error : 'Could not save settings.');
+      return;
+    }
+    closeAllModals();
+  });
+  footer.appendChild(cancel);
+  footer.appendChild(save);
+
+  dialog.appendChild(header);
+  dialog.appendChild(body);
+  dialog.appendChild(footer);
+  overlay.appendChild(dialog);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeAllModals();
+    }
+  });
+
+  mountModalOverlay(overlay);
+
+  const applyUpdateStatus = (detail) => {
+    if (!detail || !detail.phase) return;
+    if (detail.phase !== 'downloaded') {
+      restartInstallBtn.style.display = 'none';
+    }
+    switch (detail.phase) {
+      case 'checking':
+        updateStatus.textContent = 'Checking for updates…';
+        checkUpdatesBtn.disabled = true;
+        break;
+      case 'available':
+        updateStatus.textContent = detail.version
+          ? `Update available: ${detail.version}. Downloading…`
+          : 'Update available. Downloading…';
+        break;
+      case 'downloading':
+        if (typeof detail.percent === 'number' && Number.isFinite(detail.percent)) {
+          updateStatus.textContent = `Downloading… ${Math.round(detail.percent)}%`;
+        } else {
+          updateStatus.textContent = 'Downloading update…';
+        }
+        checkUpdatesBtn.disabled = true;
+        break;
+      case 'not-available':
+        updateStatus.textContent = 'You are on the latest version.';
+        checkUpdatesBtn.disabled = false;
+        break;
+      case 'downloaded':
+        updateStatus.textContent = detail.version
+          ? `Update ${detail.version} is ready to install.`
+          : 'Update is ready to install.';
+        checkUpdatesBtn.disabled = false;
+        restartInstallBtn.style.display = '';
+        break;
+      case 'error':
+        updateStatus.textContent = detail.message
+          ? `Update: ${detail.message}`
+          : 'Update check failed.';
+        checkUpdatesBtn.disabled = false;
+        break;
+      default:
+        break;
+    }
+  };
+
+  checkUpdatesBtn.addEventListener('click', async () => {
+    try {
+      const info = await api.getAppUpdateInfo();
+      if (!info || !info.isPackaged) {
+        window.alert('Automatic updates apply to the installed Windows build, not dev mode.');
+        return;
+      }
+      restartInstallBtn.style.display = 'none';
+      updateStatus.textContent = 'Checking for updates…';
+      checkUpdatesBtn.disabled = true;
+      const res = await api.checkForAppUpdates();
+      if (!res.ok && !res.skipped) {
+        updateStatus.textContent = res.error ? `Update: ${res.error}` : 'Update check failed.';
+        checkUpdatesBtn.disabled = false;
+        window.alert(res.error || 'Update check failed.');
+      }
+    } catch (e) {
+      console.error(e);
+      checkUpdatesBtn.disabled = false;
+      window.alert(e && e.message ? e.message : 'Update check failed.');
+    }
+  });
+
+  restartInstallBtn.addEventListener('click', () => {
+    if (typeof api.quitAndInstallUpdate === 'function') {
+      api.quitAndInstallUpdate();
+    }
+  });
+
+  try {
+    const s = await api.loadLlmSettings();
+    providerSel.value = s.provider === 'openai' ? 'openai' : 'ollama';
+    ollamaUrl.value = s.ollamaBaseUrl || 'http://127.0.0.1:11434';
+    ollamaModel.value = s.ollamaModel || 'llama3.2';
+    openaiUrl.value = s.openaiBaseUrl || 'https://api.openai.com';
+    openaiModel.value = s.openaiModel || 'gpt-4o-mini';
+    apiKey.value = s.apiKey || '';
+    defaultNum.value = String(
+      Number.isFinite(s.defaultNumCards) && s.defaultNumCards > 0 ? s.defaultNumCards : 10
+    );
+  } catch (e) {
+    console.error(e);
+  }
+
+  try {
+    if (typeof api.getAppUpdateInfo === 'function') {
+      const u = await api.getAppUpdateInfo();
+      versionLabel.textContent =
+        u && u.version ? `${u.name || 'Froggy Flash'} ${u.version}` : 'Version unknown';
+      if (!u || !u.isPackaged) {
+        updateHint.textContent =
+          'Development mode: packaged installs check for updates after launch and from this tab.';
+        checkUpdatesBtn.disabled = false;
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    versionLabel.textContent = 'Could not read app version.';
+  }
+
+  if (typeof api.onAutoUpdateEvent === 'function') {
+    const unsub = api.onAutoUpdateEvent(applyUpdateStatus);
+    overlay._froggyUpdateUnsub = unsub;
+  }
+}
+
+async function openManageDecksModal() {
+  await loadDeckListOnStartup();
+
+  let selectedDeck = null;
+  /** When true, the deck list is replaced by the “new deck + generate” form. */
+  let showAddDeckForm = false;
+  /** Default for “number of cards” when opening the add-deck form (from LLM settings). */
+  let addDeckDefaultNumCards = 10;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'modal-dialog modal-wide';
+
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+  const title = document.createElement('div');
+  title.className = 'modal-title';
+  title.textContent = 'Manage decks';
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'modal-close';
+  closeBtn.textContent = 'Close';
+  closeBtn.addEventListener('click', () => closeAllModals());
+  header.appendChild(title);
+  header.appendChild(closeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'modal-body';
+
+  const listHost = document.createElement('div');
+  const detailHost = document.createElement('div');
+
+  async function refreshAndRedraw() {
+    await loadDeckListOnStartup();
+    if (selectedDeck) {
+      const still = availableDecks.find((d) => d.id === selectedDeck.id);
+      selectedDeck = still || null;
+    }
+    renderAll();
+  }
+
+  function renderAll() {
+    listHost.innerHTML = '';
+    detailHost.innerHTML = '';
+
+    if (showAddDeckForm) {
+      detailHost.style.display = 'none';
+
+      const panel = document.createElement('div');
+      panel.className = 'add-deck-panel';
+
+      const intro = document.createElement('div');
+      intro.className = 'modal-hint';
+      intro.style.marginBottom = '12px';
+      intro.textContent =
+        'Creates a folder deck and generates an initial card set with your LLM (Settings → LLM).';
+      panel.appendChild(intro);
+
+      const nameWrap = document.createElement('div');
+      nameWrap.className = 'modal-field';
+      const nameLabel = document.createElement('label');
+      nameLabel.setAttribute('for', 'add-deck-name-input');
+      nameLabel.textContent = 'Deck name';
+      const nameInput = document.createElement('input');
+      nameInput.id = 'add-deck-name-input';
+      nameInput.type = 'text';
+      nameInput.className = 'modal-input';
+      nameInput.placeholder = 'e.g. Rust ownership basics';
+      nameWrap.appendChild(nameLabel);
+      nameWrap.appendChild(nameInput);
+      panel.appendChild(nameWrap);
+
+      const descWrap = document.createElement('div');
+      descWrap.className = 'modal-field';
+      const descLabel = document.createElement('label');
+      descLabel.setAttribute('for', 'add-deck-desc-input');
+      descLabel.textContent = 'What should this set cover?';
+      const descTa = document.createElement('textarea');
+      descTa.id = 'add-deck-desc-input';
+      descTa.className = 'modal-textarea';
+      descTa.style.minHeight = '120px';
+      descTa.placeholder =
+        'Describe scope, difficulty, and focus. This text is sent to the model as the topic for every card.';
+      descWrap.appendChild(descLabel);
+      descWrap.appendChild(descTa);
+      panel.appendChild(descWrap);
+
+      const numWrap = document.createElement('div');
+      numWrap.className = 'modal-field';
+      const numLabel = document.createElement('label');
+      numLabel.setAttribute('for', 'add-deck-num-input');
+      numLabel.textContent = 'Number of cards to generate (1–50)';
+      const numInput = document.createElement('input');
+      numInput.id = 'add-deck-num-input';
+      numInput.type = 'number';
+      numInput.className = 'modal-input';
+      numInput.min = '1';
+      numInput.max = '50';
+      numInput.value = String(addDeckDefaultNumCards);
+      numWrap.appendChild(numLabel);
+      numWrap.appendChild(numInput);
+      panel.appendChild(numWrap);
+
+      listHost.appendChild(panel);
+
+      const formActions = document.createElement('div');
+      formActions.className = 'manage-actions';
+      formActions.style.marginTop = '14px';
+
+      const cancelForm = document.createElement('button');
+      cancelForm.type = 'button';
+      cancelForm.className = 'modal-btn';
+      cancelForm.textContent = 'Cancel';
+      cancelForm.addEventListener('click', () => {
+        showAddDeckForm = false;
+        renderAll();
+      });
+
+      const submitForm = document.createElement('button');
+      submitForm.type = 'button';
+      submitForm.className = 'modal-btn modal-btn-primary';
+      submitForm.textContent = 'Create deck & generate cards';
+      submitForm.addEventListener('click', async () => {
+        const deckName = String(nameInput.value || '').trim();
+        const topic = String(descTa.value || '').trim();
+        const n = parseInt(numInput.value, 10);
+        if (!deckName) {
+          window.alert('Please enter a deck name.');
+          return;
+        }
+        if (!topic) {
+          window.alert('Please describe what the set of questions should cover.');
+          return;
+        }
+        if (!Number.isFinite(n) || n < 1 || n > 50) {
+          window.alert('Number of cards must be between 1 and 50.');
+          return;
+        }
+        submitForm.disabled = true;
+        cancelForm.disabled = true;
+        submitForm.textContent = 'Creating deck…';
+        let createdPath = null;
+        try {
+          const resCreate = await api.createDeck({ name: deckName });
+          if (!resCreate || !resCreate.ok) {
+            window.alert(resCreate && resCreate.error ? resCreate.error : 'Could not create deck.');
+            submitForm.disabled = false;
+            cancelForm.disabled = false;
+            submitForm.textContent = 'Create deck & generate cards';
+            return;
+          }
+          createdPath = resCreate.deckManifestPath;
+          submitForm.textContent = 'Generating cards…';
+          const resGen = await api.generateCardSetViaLlm({
+            deckManifestPath: createdPath,
+            topic,
+            numCards: n
+          });
+          if (!resGen || !resGen.ok) {
+            window.alert(
+              (resGen && resGen.error ? resGen.error : 'Generation failed.') +
+                '\n\nThe deck was created; you can use “Generate with LLM…” on it later.'
+            );
+          } else if (resGen.filePath) {
+            window.alert(`Deck created and card set saved:\n\n${resGen.filePath}`);
+          }
+          showAddDeckForm = false;
+          await refreshAndRedraw();
+          const created = availableDecks.find((x) => x.id === createdPath);
+          if (created) {
+            selectedDeck = created;
+          }
+          renderAll();
+        } catch (err) {
+          console.error(err);
+          window.alert('Something went wrong. Check the console for details.');
+          showAddDeckForm = false;
+          if (createdPath) {
+            await refreshAndRedraw();
+            const created = availableDecks.find((x) => x.id === createdPath);
+            if (created) {
+              selectedDeck = created;
+            }
+          }
+          renderAll();
+        }
+      });
+
+      formActions.appendChild(cancelForm);
+      formActions.appendChild(submitForm);
+      panel.appendChild(formActions);
+      return;
+    }
+
+    const topBar = document.createElement('div');
+    topBar.className = 'manage-actions';
+    topBar.style.marginBottom = '10px';
+    const addDeckBtn = document.createElement('button');
+    addDeckBtn.type = 'button';
+    addDeckBtn.className = 'modal-btn modal-btn-primary';
+    addDeckBtn.textContent = 'Add deck';
+    addDeckBtn.addEventListener('click', async () => {
+      let def = 10;
+      try {
+        const s = await api.loadLlmSettings();
+        if (s && Number.isFinite(s.defaultNumCards) && s.defaultNumCards > 0) {
+          def = Math.min(50, Math.max(1, Math.round(s.defaultNumCards)));
+        }
+      } catch (_) {
+        /* keep 10 */
+      }
+      addDeckDefaultNumCards = def;
+      showAddDeckForm = true;
+      renderAll();
+    });
+    topBar.appendChild(addDeckBtn);
+    listHost.appendChild(topBar);
+
+    if (!availableDecks.length) {
+      const empty = document.createElement('div');
+      empty.className = 'modal-hint';
+      empty.textContent =
+        'No decks yet. Click “Add deck” to name a deck, describe what to cover, and generate cards with your LLM (or import JSON later).';
+      listHost.appendChild(empty);
+      detailHost.style.display = 'none';
+      return;
+    }
+
+    detailHost.style.display = 'block';
+
+    availableDecks.forEach((deck) => {
+      const row = document.createElement('div');
+      row.className = 'manage-deck-row';
+      if (selectedDeck && selectedDeck.id === deck.id) {
+        row.classList.add('is-selected');
+      }
+      const t = document.createElement('div');
+      t.className = 'manage-deck-title';
+      t.textContent = deck.name || deck.fileName || 'Untitled';
+      const meta = document.createElement('div');
+      meta.className = 'manage-deck-meta';
+      if (isStructuredDeck(deck)) {
+        meta.textContent = `Folder deck · ${deck.sets.length} card set file${
+          deck.sets.length === 1 ? '' : 's'
+        }`;
+      } else {
+        meta.textContent = 'Single JSON file in decks folder';
+      }
+      row.appendChild(t);
+      row.appendChild(meta);
+      row.addEventListener('click', () => {
+        selectedDeck = deck;
+        renderAll();
+      });
+      listHost.appendChild(row);
+    });
+
+    if (!selectedDeck && availableDecks.length) {
+      selectedDeck = availableDecks[0];
+    }
+
+    if (!selectedDeck) {
+      return;
+    }
+
+    const d = selectedDeck;
+    const detailTitle = document.createElement('div');
+    detailTitle.className = 'manage-deck-title';
+    detailTitle.style.marginBottom = '6px';
+    detailTitle.textContent = d.name || d.fileName || 'Untitled';
+    detailHost.appendChild(detailTitle);
+
+    const actions = document.createElement('div');
+    actions.className = 'manage-actions';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.type = 'button';
+    renameBtn.className = 'modal-btn';
+    renameBtn.textContent = 'Rename deck';
+    renameBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!isStructuredDeck(d)) {
+        window.alert('Rename this file from Explorer, or import it into a folder deck.');
+        return;
+      }
+      const next = window.prompt('New display name:', d.name || '');
+      if (!next || !String(next).trim()) {
+        return;
+      }
+      const res = await api.renameDeck({ deckManifestPath: d.id, newName: String(next).trim() });
+      if (!res || !res.ok) {
+        window.alert(res && res.error ? res.error : 'Rename failed.');
+        return;
+      }
+      await refreshAndRedraw();
+    });
+
+    const importBtn = document.createElement('button');
+    importBtn.type = 'button';
+    importBtn.className = 'modal-btn';
+    importBtn.textContent = 'Import JSON…';
+    importBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!isStructuredDeck(d)) {
+        window.alert('Import is for folder decks. Add a deck, then import JSON files into it.');
+        return;
+      }
+      const pick = await api.pickJsonFiles();
+      if (pick.canceled || !pick.filePaths || !pick.filePaths.length) {
+        return;
+      }
+      const replace = window.confirm(
+        'Replace all existing card set (.json) files in this deck before importing?\n\n' +
+          'OK = delete current sets in the deck folder, then copy the selected files.\n' +
+          'Cancel = keep existing files and add copies (renamed if filenames clash).'
+      );
+      const res = await api.importDeckSets({
+        deckManifestPath: d.id,
+        filePaths: pick.filePaths,
+        replaceExisting: replace
+      });
+      if (!res || !res.ok) {
+        window.alert(res && res.error ? res.error : 'Import failed.');
+        return;
+      }
+      await refreshAndRedraw();
+    });
+
+    const genBtn = document.createElement('button');
+    genBtn.type = 'button';
+    genBtn.className = 'modal-btn';
+    genBtn.textContent = 'Generate with LLM…';
+    genBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!isStructuredDeck(d)) {
+        window.alert('LLM generation saves into a folder deck. Create a deck first, then generate.');
+        return;
+      }
+      closeAllModals();
+      await openGenerateSetModal(d.id, async () => {
+        await loadDeckListOnStartup();
+      });
+    });
+
+    const settingsBtn = document.createElement('button');
+    settingsBtn.type = 'button';
+    settingsBtn.className = 'modal-btn';
+    settingsBtn.textContent = 'LLM settings…';
+    settingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeAllModals();
+      openLlmSettingsModal();
+    });
+
+    const delDeckBtn = document.createElement('button');
+    delDeckBtn.type = 'button';
+    delDeckBtn.className = 'modal-btn modal-btn-danger';
+    delDeckBtn.textContent = 'Delete deck';
+    delDeckBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const label = d.name || d.fileName || 'this deck';
+      if (!window.confirm(`Delete ${label}? This cannot be undone.`)) {
+        return;
+      }
+      const res = await api.deleteDeck({ deckManifestPath: d.id });
+      if (!res || !res.ok) {
+        window.alert(res && res.error ? res.error : 'Delete failed.');
+        return;
+      }
+      selectedDeck = null;
+      await refreshAndRedraw();
+    });
+
+    actions.appendChild(renameBtn);
+    actions.appendChild(importBtn);
+    actions.appendChild(genBtn);
+    actions.appendChild(settingsBtn);
+    actions.appendChild(delDeckBtn);
+    detailHost.appendChild(actions);
+
+    const setsTitle = document.createElement('div');
+    setsTitle.className = 'modal-hint';
+    setsTitle.style.marginTop = '14px';
+    setsTitle.textContent = 'Card sets (JSON files under this deck):';
+    detailHost.appendChild(setsTitle);
+
+    if (isStructuredDeck(d)) {
+      if (!d.sets.length) {
+        const none = document.createElement('div');
+        none.className = 'modal-hint';
+        none.textContent = 'No card sets yet — import or generate JSON files.';
+        detailHost.appendChild(none);
+      } else {
+        d.sets.forEach((setInfo) => {
+          const row = document.createElement('div');
+          row.className = 'manage-set-row';
+          const left = document.createElement('div');
+          left.textContent = setInfo.name || setInfo.fileName || 'Untitled set';
+          const btns = document.createElement('div');
+          btns.style.display = 'flex';
+          btns.style.gap = '6px';
+
+          const edit = document.createElement('button');
+          edit.type = 'button';
+          edit.className = 'modal-btn';
+          edit.textContent = 'Edit';
+          edit.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            closeAllModals();
+            await openCardSetEditorModal(setInfo.id, async () => {
+              await loadDeckListOnStartup();
+            });
+          });
+
+          const del = document.createElement('button');
+          del.type = 'button';
+          del.className = 'modal-btn modal-btn-danger';
+          del.textContent = 'Delete';
+          del.addEventListener('click', async (ev) => {
+            ev.stopPropagation();
+            if (!window.confirm(`Delete card set "${setInfo.name || setInfo.fileName}"?`)) {
+              return;
+            }
+            const res = await api.deleteCardSetFile(setInfo.id);
+            if (!res || !res.ok) {
+              window.alert(res && res.error ? res.error : 'Delete failed.');
+              return;
+            }
+            await refreshAndRedraw();
+          });
+
+          btns.appendChild(edit);
+          btns.appendChild(del);
+          row.appendChild(left);
+          row.appendChild(btns);
+          detailHost.appendChild(row);
+        });
+      }
+    } else {
+      const row = document.createElement('div');
+      row.className = 'manage-set-row';
+      const left = document.createElement('div');
+      left.textContent = d.fileName || 'Flashcard JSON';
+      const btns = document.createElement('div');
+      btns.style.display = 'flex';
+      btns.style.gap = '6px';
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'modal-btn';
+      edit.textContent = 'Edit JSON';
+      edit.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        closeAllModals();
+        await openCardSetEditorModal(d.id, async () => {
+          await loadDeckListOnStartup();
+        });
+      });
+      btns.appendChild(edit);
+      row.appendChild(left);
+      row.appendChild(btns);
+      detailHost.appendChild(row);
+    }
+  }
+
+  body.appendChild(listHost);
+  body.appendChild(detailHost);
+
+  const footer = document.createElement('div');
+  footer.className = 'modal-footer';
+  const openOnce = document.createElement('button');
+  openOnce.type = 'button';
+  openOnce.className = 'modal-btn';
+  openOnce.textContent = 'Open JSON file (session only)…';
+  openOnce.title = 'Does not copy into a deck; useful for one-off files anywhere on disk.';
+  openOnce.addEventListener('click', async () => {
+    closeAllModals();
+    await openExternalJsonSession();
+  });
+  const done = document.createElement('button');
+  done.type = 'button';
+  done.className = 'modal-btn modal-btn-primary';
+  done.textContent = 'Done';
+  done.addEventListener('click', () => closeAllModals());
+  footer.appendChild(openOnce);
+  footer.appendChild(done);
+
+  dialog.appendChild(header);
+  dialog.appendChild(body);
+  dialog.appendChild(footer);
+  overlay.appendChild(dialog);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      closeAllModals();
+    }
+  });
+
+  mountModalOverlay(overlay);
+  renderAll();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -994,9 +2266,18 @@ window.addEventListener('DOMContentLoaded', () => {
     loadBtn.addEventListener('click', handleLoadSetClicked);
   }
 
-  const browseBtn = $('deck-browse-btn');
-  if (browseBtn) {
-    browseBtn.addEventListener('click', handleBrowseDeckClicked);
+  const manageBtn = $('deck-manage-btn');
+  if (manageBtn) {
+    manageBtn.addEventListener('click', () => {
+      openManageDecksModal().catch((err) => console.error('Manage decks:', err));
+    });
+  }
+
+  const settingsBtn = $('settings-btn');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      openLlmSettingsModal();
+    });
   }
 
   const exportBtn = $('export-data-btn');

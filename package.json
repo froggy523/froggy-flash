@@ -11,15 +11,14 @@
     "release:bump-build": "node scripts/bump-build.js",
     "version:bump:patch": "node scripts/bump-version.js patch",
     "version:bump:minor": "node scripts/bump-version.js minor",
-    "version:bump:major": "node scripts/bump-version.js major"
+    "version:bump:major": "node scripts/bump-version.js major",
+    "release-notes": "node scripts/generate-release-notes.js",
+    "release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/new-github-release.ps1"
   },
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
   "devDependencies": {
+    "chokidar": "^3.6.0",
     "electron": "^32.1.2",
     "electron-builder": "^24.13.3",
     "electron-packager": "^17.1.2",
@@ -35,6 +34,7 @@
     "files": [
       "!dist/**",
       "!docs/**",
+      "!release-notes/**",
       "!node_modules/.cache/**"
     ],
     "win": {
@@ -48,5 +48,10 @@
       "uninstallerIcon": "images/Cards.ico",
       "installerHeaderIcon": "images/Cards.ico"
     }
+  },
+  "dependencies": {
+    "dompurify": "^3.4.2",
+    "electron-updater": "^6.8.3",
+    "marked": "^18.0.3"
   }
 }

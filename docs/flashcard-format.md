@@ -39,7 +39,7 @@ Each element in `cards` is an object describing one multiple-choice question.
 
 Required fields:
 
-- **`question`** (string): The question text, as shown to the user.
+- **`question`** (string): The question text, as shown to the user. May contain **GitHub-flavored Markdown** (headings, lists, code fences, tables, math-free prose, etc.). The app renders it as formatted Markdown; escape literal characters as needed inside JSON strings (e.g. newlines as `\n`, backslashes doubled).
 - **`choices`** (object): A map from choice keys (e.g. `"a"`, `"b"`, `"c"`) to choice objects.
 - **`answer`** (string): The key of the correct choice (e.g. `"a"`). **Must exactly match** one key in `choices`.
 - **`explanation`** (string): Explanation of why the correct answer is correct. Shown after the user answers.
@@ -56,6 +56,7 @@ Choice object fields:
 
 The app:
 
+- Renders `question` as **Markdown** (sanitized HTML).
 - Renders all entries in `choices`, sorted by key (`"a"`, `"b"`, `"c"`, ...).
 - Treats `answer` as the only correct choice.
 - Shows:
@@ -132,8 +133,9 @@ When **generating** or **editing** flashcard sets, adhere to these rules:
   - Choice-level `explanation` should explain **why that choice is wrong** (for incorrect options) or add nuance (for the correct option).
 
 - **Content clarity**
-  - Make `question` and `choices[*].text` self-contained; avoid referring to external context that won’t be visible to the user.
+  - Make `question` (including any Markdown) and `choices[*].text` self-contained; avoid referring to external context that won’t be visible to the user.
   - Avoid ambiguous wording where multiple choices could plausibly be correct.
+  - For Markdown in `question`, prefer fenced code blocks for snippets and keep heading levels modest so the card stays readable.
 
 - **JSON-only output for programmatic use**
   - If the LLM is asked to “output a flashcard set”, respond only with the JSON object matching this schema (no prose around it), unless explicitly instructed otherwise.
@@ -143,7 +145,7 @@ When **generating** or **editing** flashcard sets, adhere to these rules:
 ### 5. Summary (for quick LLM recall)
 
 - A flashcard file is **one JSON object** with `name`, `description`, and a `cards` array.
-- Each card has `question`, `choices`, `answer`, `explanation`.
+- Each card has `question` (plain text or **Markdown**), `choices`, `answer`, `explanation`.
 - `choices` is a map from letter keys (`"a"`, `"b"`, `"c"`, …) to `{ "text": string, "explanation"?: string }`.
 - `answer` is the **letter key** of the correct choice and **must exist** in `choices`.
 - Explanations are used both:

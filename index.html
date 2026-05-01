@@ -41,75 +41,37 @@
         padding: 0;
       }
 
-      .menu-bar-root {
-        width: 100%;
-        margin-bottom: 8px;
+      .app-top-chrome {
+        flex-shrink: 0;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
         padding: 8px 10px 0;
         box-sizing: border-box;
       }
 
-      .menu-bar {
-        height: 28px;
-        display: flex;
-        align-items: center;
-        background: rgba(15, 23, 42, 0.96);
-        border-radius: 8px;
-        border: 1px solid rgba(148, 163, 184, 0.5);
-        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.85);
-        padding: 0 8px;
-        user-select: none;
-      }
-
-      .menu-bar-item {
-        position: relative;
-        padding: 3px 10px;
-        font-size: 12px;
-        color: var(--text);
-        border-radius: 4px;
-        cursor: default;
-      }
-
-      .menu-bar-item-label {
-        cursor: pointer;
-      }
-
-      .menu-bar-item-label:hover {
-        background: rgba(148, 163, 184, 0.3);
-        border-radius: 4px;
-      }
-
-      .menu-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        margin-top: 2px;
-        background: rgba(15, 23, 42, 0.98);
-        border-radius: 6px;
-        border: 1px solid rgba(148, 163, 184, 0.7);
-        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.96);
-        min-width: 140px;
-        padding: 4px 0;
-        z-index: 50;
-      }
-
-      .menu-dropdown-item {
-        padding: 4px 14px;
-        font-size: 12px;
-        color: var(--text);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: default;
-      }
-
-      .menu-dropdown-item:hover {
-        background: rgba(59, 130, 246, 0.32);
-      }
-
-      .menu-dropdown-item-accelerator {
-        font-size: 11px;
+      .settings-top-btn {
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.65);
+        background: rgba(15, 23, 42, 0.92);
         color: var(--text-muted);
-        margin-left: 10px;
+        font-size: 12px;
+        font-weight: 500;
+        padding: 6px 14px;
+        cursor: pointer;
+        transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease,
+          transform 0.08s ease;
+      }
+
+      .settings-top-btn:hover {
+        color: var(--text);
+        border-color: rgba(148, 163, 184, 0.95);
+        background: rgba(15, 23, 42, 0.98);
+        transform: translateY(-0.5px);
+      }
+
+      .settings-top-btn:active {
+        transform: translateY(0);
       }
 
       .app-shell {
@@ -315,6 +277,105 @@
         font-size: 15px;
         line-height: 1.5;
         margin-bottom: 12px;
+      }
+
+      .question-text.markdown-body p {
+        margin: 0.4em 0;
+      }
+
+      .question-text.markdown-body p:first-child {
+        margin-top: 0;
+      }
+
+      .question-text.markdown-body p:last-child {
+        margin-bottom: 0;
+      }
+
+      .question-text.markdown-body h1,
+      .question-text.markdown-body h2,
+      .question-text.markdown-body h3 {
+        font-size: 1.05em;
+        font-weight: 600;
+        margin: 0.65em 0 0.35em;
+        color: var(--text);
+      }
+
+      .question-text.markdown-body h1:first-child,
+      .question-text.markdown-body h2:first-child,
+      .question-text.markdown-body h3:first-child {
+        margin-top: 0;
+      }
+
+      .question-text.markdown-body ul,
+      .question-text.markdown-body ol {
+        margin: 0.35em 0 0.35em 1.25em;
+        padding: 0;
+      }
+
+      .question-text.markdown-body li {
+        margin: 0.2em 0;
+      }
+
+      .question-text.markdown-body pre {
+        margin: 0.5em 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.38);
+        border: 1px solid var(--border-subtle);
+        overflow-x: auto;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .question-text.markdown-body code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.9em;
+        padding: 0.12em 0.35em;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.35);
+      }
+
+      .question-text.markdown-body pre code {
+        padding: 0;
+        background: none;
+        font-size: inherit;
+      }
+
+      .question-text.markdown-body blockquote {
+        margin: 0.5em 0;
+        padding-left: 12px;
+        border-left: 3px solid var(--accent-muted);
+        color: var(--text-muted);
+      }
+
+      .question-text.markdown-body table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin: 0.5em 0;
+      }
+
+      .question-text.markdown-body th,
+      .question-text.markdown-body td {
+        border: 1px solid var(--border-subtle);
+        padding: 6px 8px;
+        text-align: left;
+      }
+
+      .question-text.markdown-body th {
+        background: rgba(148, 163, 184, 0.12);
+      }
+
+      .question-text.markdown-body hr {
+        border: none;
+        border-top: 1px solid var(--border-subtle);
+        margin: 0.75em 0;
+      }
+
+      .question-text.markdown-body a {
+        color: var(--accent-muted);
+        text-decoration: underline;
+        text-underline-offset: 2px;
       }
 
       .choices {
@@ -728,6 +789,88 @@
         margin-left: 8px;
       }
 
+      .deck-tree-deck {
+        margin-bottom: 8px;
+      }
+
+      .deck-tree-deck-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.75);
+        cursor: pointer;
+        font-size: 13px;
+        transition: border-color 0.14s ease, background 0.14s ease;
+      }
+
+      .deck-tree-deck-header:hover {
+        border-color: rgba(96, 165, 250, 0.75);
+        background: rgba(15, 23, 42, 0.92);
+      }
+
+      .deck-tree-toggle {
+        flex: 0 0 auto;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 11px;
+        line-height: 1;
+        cursor: pointer;
+        pointer-events: none;
+      }
+
+      .deck-tree-deck-title {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-weight: 600;
+        color: #e5e7eb;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .deck-tree-deck-count {
+        flex: 0 0 auto;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--text-muted);
+        background: rgba(30, 41, 59, 0.95);
+        border-radius: 999px;
+        padding: 2px 8px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+      }
+
+      .deck-tree-children {
+        margin-top: 4px;
+        margin-left: 10px;
+        padding-left: 10px;
+        border-left: 1px solid rgba(71, 85, 105, 0.55);
+      }
+
+      .deck-tree-set {
+        margin-bottom: 4px;
+      }
+
+      .deck-tree-flat {
+        margin-bottom: 6px;
+      }
+
+      .deck-tree-empty-sets {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-style: italic;
+        padding: 6px 4px 8px 6px;
+        line-height: 1.35;
+      }
+
       .deck-list-empty {
         font-size: 12px;
         color: var(--text-muted);
@@ -758,10 +901,269 @@
       .deck-browse-btn:active {
         transform: translateY(0);
       }
+
+      .modal-root {
+        position: fixed;
+        inset: 0;
+        z-index: 400;
+        pointer-events: none;
+      }
+
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.72);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        pointer-events: auto;
+      }
+
+      .modal-overlay.is-open {
+        display: flex;
+      }
+
+      .modal-dialog {
+        width: min(720px, 100%);
+        max-height: min(88vh, 900px);
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.99), rgba(2, 6, 23, 0.98));
+        border-radius: 16px;
+        border: 1px solid var(--border-strong);
+        box-shadow: var(--shadow-soft);
+        overflow: hidden;
+      }
+
+      .modal-dialog.modal-wide {
+        width: min(900px, 100%);
+      }
+
+      .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+        gap: 10px;
+      }
+
+      .modal-title {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+      }
+
+      .modal-close {
+        border-radius: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.5);
+        background: rgba(15, 23, 42, 0.9);
+        color: var(--text-muted);
+        font-size: 12px;
+        padding: 5px 10px;
+        cursor: pointer;
+      }
+
+      .modal-close:hover {
+        color: var(--text);
+        border-color: rgba(148, 163, 184, 0.85);
+      }
+
+      .modal-body {
+        padding: 14px 16px 16px;
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
+        font-size: 13px;
+      }
+
+      .modal-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+        padding: 12px 16px;
+        border-top: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(15, 23, 42, 0.55);
+      }
+
+      .modal-btn {
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.65);
+        background: rgba(15, 23, 42, 0.96);
+        color: var(--text);
+        font-size: 12px;
+        padding: 6px 14px;
+        cursor: pointer;
+      }
+
+      .modal-btn:hover {
+        border-color: rgba(96, 165, 250, 0.85);
+      }
+
+      .modal-btn-primary {
+        border-color: var(--accent-muted);
+        background: radial-gradient(circle at 20% 0%, #4ade80 0, #16a34a 55%, #15803d 100%);
+        color: #022c22;
+        font-weight: 600;
+      }
+
+      .modal-btn-danger {
+        border-color: rgba(248, 113, 113, 0.75);
+        color: #fecaca;
+        background: rgba(127, 29, 29, 0.2);
+      }
+
+      .modal-btn-danger:hover {
+        border-color: #f97373;
+      }
+
+      .manage-deck-row {
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: border-color 0.12s ease, background 0.12s ease;
+      }
+
+      .manage-deck-row:hover {
+        border-color: rgba(96, 165, 250, 0.75);
+        background: rgba(30, 41, 59, 0.45);
+      }
+
+      .manage-deck-row.is-selected {
+        border-color: rgba(74, 222, 128, 0.85);
+        background: rgba(22, 101, 52, 0.12);
+      }
+
+      .manage-deck-title {
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .manage-deck-meta {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+
+      .manage-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 12px;
+      }
+
+      .manage-detail {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px dashed rgba(148, 163, 184, 0.35);
+      }
+
+      .manage-set-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(51, 65, 85, 0.55);
+        font-size: 12px;
+      }
+
+      .manage-set-row:last-child {
+        border-bottom: none;
+      }
+
+      .modal-field {
+        margin-bottom: 10px;
+      }
+
+      .modal-field label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+      }
+
+      .modal-input,
+      .modal-select,
+      .modal-textarea {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.55);
+        background: rgba(2, 6, 23, 0.85);
+        color: var(--text);
+        font-size: 13px;
+        padding: 8px 10px;
+        font-family: inherit;
+      }
+
+      .modal-textarea {
+        min-height: 120px;
+        resize: vertical;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+      }
+
+      .modal-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 6px;
+        line-height: 1.4;
+      }
+
+      .settings-tab-bar {
+        display: flex;
+        gap: 4px;
+        margin: -4px 0 14px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+        padding-bottom: 0;
+      }
+
+      .settings-tab {
+        border: none;
+        border-radius: 8px 8px 0 0;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 8px 14px 10px;
+        cursor: pointer;
+        margin-bottom: -1px;
+        border-bottom: 2px solid transparent;
+        transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+      }
+
+      .settings-tab:hover {
+        color: var(--text);
+        background: rgba(30, 41, 59, 0.5);
+      }
+
+      .settings-tab.is-active {
+        color: var(--accent-muted);
+        background: rgba(22, 163, 74, 0.08);
+        border-bottom-color: var(--accent-muted);
+      }
+
+      .settings-tab-panel {
+        display: none;
+      }
+
+      .settings-tab-panel.is-active {
+        display: block;
+      }
     </style>
   </head>
   <body>
-    <div id="menu-root" class="menu-bar-root"></div>
+    <div class="app-top-chrome">
+      <button type="button" class="settings-top-btn" id="settings-btn">Settings</button>
+    </div>
 
     <div class="app-shell">
       <aside class="panel" id="deck-panel">
@@ -769,12 +1171,14 @@
           <div class="deck-list-title">Decks</div>
             <div style="display: flex; align-items: center; gap: 6px">
               <div class="pill-muted" id="deck-panel-status">Loading…</div>
-              <button class="deck-browse-btn" id="deck-browse-btn">Browse…</button>
+              <button class="deck-browse-btn" id="deck-manage-btn">Manage…</button>
             </div>
         </div>
         <div class="deck-list" id="deck-list">
           <div class="deck-list-empty" id="deck-list-empty">
-            No decks found. Place JSON decks in the built-in <code>cards</code> folder.
+            No decks found. Add <code>*.deck.json</code> manifests under your
+            <code>froggy-flash/decks</code> folder (in your home directory), each with a same-named
+            subfolder holding one or more card set <code>.json</code> files.
           </div>
         </div>
       </aside>
@@ -809,11 +1213,14 @@
         <div id="question-container">
           <div class="empty-state" id="empty-state">
             <p>
-              Click <strong>New Session</strong> to open a JSON file and start a test.
+              Pick a <strong>card set</strong> under <strong>Decks</strong> on the left, then click
+              <strong>New Session</strong>. Use <strong>Manage…</strong> to add, import, edit, or
+              generate decks; you can also open a JSON file once from there.
             </p>
             <p style="margin-top: 6px">
-              Each file should include <code>name</code>, <code>description</code>, and a
-              <code>cards</code> array. Each card defines a <code>question</code>, a
+              Each card set file should include <code>name</code>, <code>description</code>, and a
+              <code>cards</code> array. Each card defines a <code>question</code> (Markdown is
+              supported), a
               <code>choices</code> object (keys like <code>a</code>, <code>b</code>, <code>c</code>
               with <code>text</code> and optional <code>explanation</code>), an <code>answer</code>
               key (e.g. <code>"a"</code>), and an overall <code>explanation</code> for why the
@@ -884,9 +1291,10 @@
       </aside>
     </div>
 
-    <script src="./node_modules/react/umd/react.development.js"></script>
-    <script src="./node_modules/react-dom/umd/react-dom.development.js"></script>
-    <script src="./menu.js"></script>
+    <div id="modal-root" class="modal-root" aria-live="polite"></div>
+
+    <script src="./node_modules/marked/lib/marked.umd.js"></script>
+    <script src="./node_modules/dompurify/dist/purify.min.js"></script>
     <script src="./renderer.js"></script>
   </body>
   </html>
