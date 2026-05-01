@@ -2,7 +2,7 @@
 
 All notable changes to **Froggy Flash** are documented in this file.
 
-Release titles and tags follow `package.json` semver plus a per-build suffix (for example `v1.0.0-b6`) when using `build-info.json` and `scripts/new-github-release.ps1`.
+Release tags are `v[major].[minor].[patch]`, matching `package.json` after the default patch bump in `scripts/new-github-release.ps1` (use `-BumpMinor` / `-BumpMajor` or `-SkipVersionBump` / `-Tag` as needed).
 
 ## [1.0.0] – 2026-05-01
 
@@ -17,11 +17,11 @@ First public release of the Windows desktop app (Electron).
 - **Session history** – Recent study sessions are recorded and can be reviewed in the UI; scores and session data can be exported for graphing or analysis.
 - **Window layout persistence** – Window size, position, and related UI preferences are saved and restored between launches.
 - **Automatic updates (packaged builds)** – When a generic update feed URL is configured (`FROGGY_UPDATE_URL` and matching `publish` entry from `electron-builder`), the app checks for updates, downloads in the background, and offers a restart to install.
-- **Windows installer** – NSIS-based installer via `electron-builder` (optional install directory, branded icons). Versioned installer names include the build number (for example `Froggy Flash Setup 1.0.0-b6.exe`).
+- **Windows installer** – NSIS-based installer via `electron-builder` (optional install directory, branded icons). Installer file names follow `Froggy Flash Setup {semver}.exe` (for example `Froggy Flash Setup 1.0.1.exe`).
 
 ### Developer / release tooling
 
-- Scripts for semver bumps, build-number bumps, icon generation, resolving the built installer path, and creating GitHub releases with `gh` (`scripts/`).
+- Scripts for semver bumps, icon generation, resolving the built installer path, and creating GitHub releases with `gh` (`scripts/`).
 
 ### Documentation
 

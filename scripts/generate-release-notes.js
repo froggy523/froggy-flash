@@ -4,7 +4,7 @@
  * Usage:
  *   node scripts/generate-release-notes.js
  *   node scripts/generate-release-notes.js --out release-notes/custom.md
- *   node scripts/generate-release-notes.js --since-tag v1.0.0-b5
+ *   node scripts/generate-release-notes.js --since-tag v1.0.0
  *   node scripts/generate-release-notes.js --all
  */
 
@@ -40,7 +40,14 @@ function parseArgs(argv) {
   return out;
 }
 
+/** Latest `vmajor.minor.patch` tag (excludes legacy `v1.0.0-bN` style); falls back to `git describe`. */
 function latestTag() {
+  const list = sh('git tag -l "v*" --merged HEAD --sort=-v:refname', true)
+    .split(/\r?\n/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const semverTag = list.find((t) => /^v\d+\.\d+\.\d+$/.test(t));
+  if (semverTag) return semverTag;
   return sh('git describe --tags --abbrev=0', true);
 }
 
@@ -53,12 +60,7 @@ function readJson(rel) {
 function main() {
   const opts = parseArgs(process.argv);
   const pkg = readJson('package.json') || {};
-  const buildInfo = readJson('build-info.json') || {};
   const version = String(pkg.version || '0.0.0').trim();
-  const buildNum =
-    typeof buildInfo.build === 'number' && Number.isFinite(buildInfo.build) && buildInfo.build >= 0
-      ? buildInfo.build
-      : 0;
   const productName =
     pkg.build && pkg.build.productName ? String(pkg.build.productName) : String(pkg.name || 'App');
   const shortSha = sh('git rev-parse --short HEAD', true) || 'unknown';
@@ -103,8 +105,7 @@ function main() {
   lines.push('');
   lines.push('| Field | Value |');
   lines.push('| --- | --- |');
-  lines.push(`| Package version | \`${version}\` |`);
-  lines.push(`| Build number | \`${buildNum}\` (installer uses \`-b${buildNum}\`) |`);
+  lines.push(`| Package version | \`${version}\` (tag \`v${version}\`) |`);
   lines.push(`| Git | \`${shortSha}\` on \`${branch}\` |`);
   lines.push(`| Generated (UTC) | \`${generatedAt}\` |`);
   lines.push('');

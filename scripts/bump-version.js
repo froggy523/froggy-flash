@@ -5,7 +5,7 @@
  * Usage: node scripts/bump-version.js <major|minor|patch|prerelease|...>
  */
 
-const { execFileSync } = require('child_process');
+const { execSync } = require('child_process');
 const path = require('path');
 
 const root = path.join(__dirname, '..');
@@ -27,8 +27,9 @@ if (!kind || !allowed.has(kind)) {
   process.exit(1);
 }
 
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-execFileSync(npm, ['version', kind, '--no-git-tag-version'], {
+// Windows: execFileSync('npm.cmd', ...) can throw EINVAL with recent Node; shell avoids that.
+execSync(`npm version ${kind} --no-git-tag-version`, {
   cwd: root,
   stdio: 'inherit',
+  shell: process.platform === 'win32',
 });
