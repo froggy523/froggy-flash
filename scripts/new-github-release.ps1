@@ -17,7 +17,8 @@
     If you pass -Tag explicitly, no semver bump is applied (you align package.json and the tag yourself).
 
     By default runs `npm test` before any version bump or build, then `npm run dist` to produce the
-    NSIS installer and uploads it from dist. Use -SkipTests to skip the test step. Use -SkipDist if
+    NSIS installer and uploads it from dist together with latest.yml (required for electron-updater
+    when the app uses the GitHub provider). Use -SkipTests to skip the test step. Use -SkipDist if
     you already built into dist. Use -SkipArtifact to skip the installer and dist step.
 
 .PARAMETER Tag
@@ -69,7 +70,7 @@
 
 .EXAMPLE
     .\scripts\new-github-release.ps1
-    Bumps patch in package.json, runs npm run dist, generates notes, creates tag v1.0.1, uploads installer.
+    Bumps patch in package.json, runs npm run dist, generates notes, creates tag v1.0.1, uploads installer and latest.yml.
 
 .EXAMPLE
     npm run release
@@ -256,6 +257,18 @@ if (-not $SkipArtifact) {
     $artifactPath = $artifactPath.Trim()
     Write-Host "Attaching installer: $artifactPath" -ForegroundColor Cyan
     $ghArgs += $artifactPath
+
+    $latestYmlResolver = Join-Path $repoRoot 'scripts\resolve-release-latest-yml.js'
+    $latestYmlPath = (& node $latestYmlResolver)
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+    if ([string]::IsNullOrWhiteSpace($latestYmlPath)) {
+        Write-Error 'resolve-release-latest-yml.js returned an empty path.'
+    }
+    $latestYmlPath = $latestYmlPath.Trim()
+    Write-Host "Attaching updater metadata: $latestYmlPath" -ForegroundColor Cyan
+    $ghArgs += $latestYmlPath
 }
 
 Write-Host "Creating GitHub release: $Tag" -ForegroundColor Cyan
