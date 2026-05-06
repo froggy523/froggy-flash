@@ -1,7 +1,16 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const quizUtils = require('./lib/quizUtils');
+
+contextBridge.exposeInMainWorld('froggyQuiz', {
+  calculatePercent: quizUtils.calculatePercent,
+  shuffleArray: quizUtils.shuffleArray,
+  getActiveTotalCards: quizUtils.getActiveTotalCards,
+  getActiveCardAt: quizUtils.getActiveCardAt,
+  getRecommendedDeckFromScores: quizUtils.getRecommendedDeckFromScores,
+  getDefaultSelectedSetPath: quizUtils.getDefaultSelectedSetPath
+});
 
 contextBridge.exposeInMainWorld('froggyApi', {
-  openFlashcardFile: () => ipcRenderer.invoke('open-flashcard-file'),
   listDecks: () => ipcRenderer.invoke('list-decks'),
   loadDeckByPath: (filePath) => ipcRenderer.invoke('load-deck-by-path', filePath),
   loadScores: () => ipcRenderer.invoke('load-scores'),
@@ -23,6 +32,9 @@ contextBridge.exposeInMainWorld('froggyApi', {
   writeCardSetFile: (payload) => ipcRenderer.invoke('write-card-set-file', payload),
   deleteCardSetFile: (filePath) => ipcRenderer.invoke('delete-card-set-file', filePath),
   generateCardSetViaLlm: (payload) => ipcRenderer.invoke('generate-card-set-via-llm', payload),
+  generateDynamicQuizViaLlm: (payload) =>
+    ipcRenderer.invoke('generate-dynamic-quiz-via-llm', payload),
+  cancelLlmGeneration: () => ipcRenderer.invoke('cancel-llm-generation'),
   getAppUpdateInfo: () => ipcRenderer.invoke('update-get-info'),
   checkForAppUpdates: () => ipcRenderer.invoke('update-check'),
   quitAndInstallUpdate: () => ipcRenderer.invoke('update-quit-and-install'),

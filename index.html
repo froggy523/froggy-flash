@@ -20,6 +20,7 @@
         --border-subtle: rgba(148, 163, 184, 0.35);
         --border-strong: rgba(148, 163, 184, 0.7);
         --shadow-soft: 0 22px 55px rgba(15, 23, 42, 0.88);
+        --deck-panel-width: 260px;
       }
 
       * {
@@ -75,7 +76,6 @@
       }
 
       .app-shell {
-        --deck-panel-width: 260px;
         width: 100%;
         display: grid;
         grid-template-columns: var(--deck-panel-width) 6px minmax(0, 1.8fr) minmax(260px, 1.2fr);
@@ -837,15 +837,50 @@
         text-overflow: ellipsis;
       }
 
-      .deck-tree-deck-count {
+      .deck-tree-category-settings-btn {
         flex: 0 0 auto;
+        margin-left: 4px;
+        padding: 2px 8px;
         font-size: 10px;
         font-weight: 600;
+        letter-spacing: 0.02em;
+        border-radius: 6px;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        background: rgba(15, 23, 42, 0.65);
         color: var(--text-muted);
-        background: rgba(30, 41, 59, 0.95);
-        border-radius: 999px;
-        padding: 2px 8px;
-        border: 1px solid rgba(148, 163, 184, 0.35);
+        cursor: pointer;
+        font-family: inherit;
+        pointer-events: auto;
+      }
+
+      .deck-tree-category-settings-btn:hover {
+        border-color: rgba(96, 165, 250, 0.75);
+        color: #e5e7eb;
+        background: rgba(30, 41, 59, 0.9);
+      }
+
+      .deck-tree-dynamic-inline-btn {
+        flex: 0 0 auto;
+        min-width: min-content;
+        position: relative;
+        z-index: 2;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(34, 197, 94, 0.45);
+        background: rgba(22, 163, 74, 0.14);
+        color: #86efac;
+        cursor: pointer;
+        font-family: inherit;
+        pointer-events: auto;
+      }
+
+      .deck-tree-dynamic-inline-btn:hover {
+        background: rgba(22, 163, 74, 0.28);
+        border-color: rgba(74, 222, 128, 0.65);
       }
 
       .deck-tree-children {
@@ -857,6 +892,16 @@
 
       .deck-tree-set {
         margin-bottom: 4px;
+      }
+
+      .deck-tree-topic-row.deck-item {
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .deck-tree-topic-row .deck-item-name {
+        flex: 1 1 auto;
+        min-width: 0;
       }
 
       .deck-tree-flat {
@@ -924,6 +969,34 @@
         display: flex;
       }
 
+      .modal-overlay.llm-wait-overlay {
+        z-index: 500;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .llm-wait-spinner-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 0 4px;
+      }
+
+      .llm-wait-spinner {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 3px solid rgba(148, 163, 184, 0.35);
+        border-top-color: var(--accent-muted);
+        animation: llm-wait-spin 0.85s linear infinite;
+      }
+
+      @keyframes llm-wait-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
       .modal-dialog {
         width: min(720px, 100%);
         max-height: min(88vh, 900px);
@@ -947,6 +1020,23 @@
         padding: 14px 16px;
         border-bottom: 1px solid rgba(148, 163, 184, 0.35);
         gap: 10px;
+      }
+
+      .modal-header .modal-title {
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .modal-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        justify-content: flex-end;
+        flex-shrink: 0;
       }
 
       .modal-title {
@@ -1020,12 +1110,35 @@
       }
 
       .manage-deck-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.4);
         padding: 10px 12px;
         margin-bottom: 8px;
         cursor: pointer;
         transition: border-color 0.12s ease, background 0.12s ease;
+      }
+
+      .manage-deck-row-main {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+
+      .manage-deck-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        justify-content: flex-end;
+        flex: 0 1 auto;
+        max-width: 100%;
+      }
+
+      .manage-deck-row-actions .modal-btn {
+        margin-top: 0;
       }
 
       .manage-deck-row:hover {
@@ -1054,6 +1167,20 @@
         flex-wrap: wrap;
         gap: 6px;
         margin-top: 12px;
+      }
+
+      .manage-category-topics-heading {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text);
+        margin-top: 14px;
+        margin-bottom: 6px;
+        line-height: 1.35;
+      }
+
+      .manage-actions.manage-category-topics-toolbar {
+        margin-top: 14px;
+        margin-bottom: 4px;
       }
 
       .manage-detail {
@@ -1168,17 +1295,19 @@
     <div class="app-shell">
       <aside class="panel" id="deck-panel">
         <div class="deck-list-panel-header">
-          <div class="deck-list-title">Decks</div>
+          <div class="deck-list-title">Library</div>
             <div style="display: flex; align-items: center; gap: 6px">
               <div class="pill-muted" id="deck-panel-status">Loading…</div>
-              <button class="deck-browse-btn" id="deck-manage-btn">Manage…</button>
+              <button class="deck-browse-btn" id="deck-add-category-btn" type="button">
+                Add category…
+              </button>
             </div>
         </div>
         <div class="deck-list" id="deck-list">
           <div class="deck-list-empty" id="deck-list-empty">
-            No decks found. Add <code>*.deck.json</code> manifests under your
-            <code>froggy-flash/decks</code> folder (in your home directory), each with a same-named
-            subfolder holding one or more card set <code>.json</code> files.
+            Nothing here yet. Under your <code>froggy-flash/decks</code> folder (in your home
+            directory), add a <code>*.deck.json</code> manifest for each <strong>category</strong>, with
+            a same-named subfolder holding one or more topic <code>.json</code> files.
           </div>
         </div>
       </aside>
@@ -1203,9 +1332,9 @@
         </div>
 
         <div class="set-meta" id="set-meta">
-          <div class="set-meta-title set-name-placeholder">No set loaded</div>
+          <div class="set-meta-title set-name-placeholder">No topic loaded</div>
           <div class="set-meta-desc">
-            Choose a JSON file describing your flashcards to begin a session.
+            Choose a topic JSON file to begin a session.
           </div>
           <div class="set-meta-file" id="set-file-label"></div>
         </div>
@@ -1213,12 +1342,14 @@
         <div id="question-container">
           <div class="empty-state" id="empty-state">
             <p>
-              Pick a <strong>card set</strong> under <strong>Decks</strong> on the left, then click
-              <strong>New Session</strong>. Use <strong>Manage…</strong> to add, import, edit, or
-              generate decks; you can also open a JSON file once from there.
+              Pick a <strong>topic</strong> under <strong>Library</strong> on the left, then click
+              <strong>New Session</strong>. Use <strong>Add category…</strong> in the library header
+              to create a category, or the <strong>...</strong> button on a category row to import topics,
+              generate JSON with your LLM, or rename the category; you can also open a JSON file
+              once from that dialog.
             </p>
             <p style="margin-top: 6px">
-              Each card set file should include <code>name</code>, <code>description</code>, and a
+              Each topic file should include <code>name</code>, <code>description</code>, and a
               <code>cards</code> array. Each card defines a <code>question</code> (Markdown is
               supported), a
               <code>choices</code> object (keys like <code>a</code>, <code>b</code>, <code>c</code>
@@ -1234,9 +1365,9 @@
         <div class="score-panel">
           <div class="score-header-row">
             <div>
-              <div class="score-title">Set Score</div>
+              <div class="score-title">Topic score</div>
               <div id="score-set-name" style="font-size: 13px; margin-top: 4px">
-                <span class="set-name-placeholder">No set selected</span>
+                <span class="set-name-placeholder">No topic selected</span>
               </div>
             </div>
             <div class="score-tag" id="score-tag">Awaiting session</div>
@@ -1262,18 +1393,18 @@
 
           <div class="stat-row">
             <div class="stat-block">
-              <div class="stat-label">Deck Last Session</div>
+              <div class="stat-label">Category last session</div>
               <div class="stat-value" id="stat-last-session">–</div>
             </div>
             <div class="stat-block">
-              <div class="stat-label">Set Best Score</div>
+              <div class="stat-label">Topic best score</div>
               <div class="stat-value" id="stat-best-score">–</div>
             </div>
           </div>
 
           <div class="history-summary" id="history-summary">
-            Load a flashcard set to start tracking your performance. Scores are saved per set name on
-            this machine.
+            Load a topic to start tracking your performance. Scores are saved per topic name on this
+            machine.
           </div>
         </div>
 

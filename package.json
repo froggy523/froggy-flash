@@ -4,6 +4,7 @@
   "description": "Electron app for practicing and scoring knowledge via flashcards loaded from JSON.",
   "main": "main.js",
   "scripts": {
+    "test": "node --test tests/normalizeScoresShape.test.js tests/flashcardSchema.test.js tests/deckPaths.test.js tests/deckNaming.test.js tests/quizUtils.test.js",
     "start": "electron .",
     "package": "electron-packager . Froggy-Flash --platform=win32 --arch=x64 --out=dist --overwrite --icon=\"images/Cards x32.png\"",
     "predist": "node scripts/generate-icon.js",

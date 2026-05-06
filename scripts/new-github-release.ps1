@@ -16,8 +16,9 @@
 
     If you pass -Tag explicitly, no semver bump is applied (you align package.json and the tag yourself).
 
-    By default runs `npm run dist` to produce the NSIS installer, then uploads it from dist.
-    Use -SkipDist if you already built into dist. Use -SkipArtifact to skip the installer and dist step.
+    By default runs `npm test` before any version bump or build, then `npm run dist` to produce the
+    NSIS installer and uploads it from dist. Use -SkipTests to skip the test step. Use -SkipDist if
+    you already built into dist. Use -SkipArtifact to skip the installer and dist step.
 
 .PARAMETER Tag
     Git tag for the release (e.g. v1.2.3). When set, no automatic semver bump is performed.
@@ -60,6 +61,9 @@
     Do not run `npm run dist` before publishing. Use when the installer for the current version is already in dist/.
     Ignored when -SkipArtifact is set.
 
+.PARAMETER SkipTests
+    Do not run `npm test` at the start of the release flow.
+
 .PARAMETER SkipArtifact
     Create a release without attaching the NSIS installer (also skips the dist step).
 
@@ -86,6 +90,10 @@
 .EXAMPLE
     .\scripts\new-github-release.ps1 -GitHubGenerateNotes
     Default bump and dist, but uses GitHub's auto-generated release notes instead of release-notes/latest.md.
+
+.EXAMPLE
+    npm run release -- -SkipTests
+    Same as `npm run release` but skips `npm test` (use only when you intentionally bypass the test gate).
 
 .NOTES
     Prerequisites:
@@ -121,6 +129,8 @@ param(
 
     [switch] $SkipVersionBump,
 
+    [switch] $SkipTests,
+
     [switch] $SkipArtifact,
 
     [switch] $SkipDist
@@ -145,6 +155,17 @@ if (-not (Test-Path -LiteralPath $pkgPath)) {
 $pkg = Get-Content -LiteralPath $pkgPath -Raw | ConvertFrom-Json
 if (-not $pkg.version) {
     Write-Error 'package.json has no "version" field.'
+}
+
+if (-not $SkipTests) {
+    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+        Write-Error 'npm is not on PATH (needed for npm test). Install Node.js or use -SkipTests.'
+    }
+    Write-Host 'Running tests (npm test)...' -ForegroundColor Cyan
+    & npm test
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "npm test failed with exit code $LASTEXITCODE"
+    }
 }
 
 if ($BumpMajor -and $BumpMinor) {

@@ -1,6 +1,7 @@
 // Renderer-side logic for Froggy Flash
 
 const api = window.froggyApi;
+const quiz = window.froggyQuiz;
 
 if (typeof marked !== 'undefined' && typeof marked.setOptions === 'function') {
   marked.setOptions({ gfm: true, breaks: true });
@@ -44,7 +45,7 @@ let currentSessionTopic = null;
 let currentSessionStartedAt = null;
 let availableDecks = [];
 let selectedDeckId = null;
-/** Deck manifest paths (`*.deck.json`) with expanded children in the sidebar tree. */
+/** Category manifest paths (`*.deck.json`) with expanded topic children in the sidebar tree. */
 let expandedDeckIds = new Set();
 let isResizingDeckPanel = false;
 let deckResizeStartX = 0;
@@ -63,102 +64,6 @@ function formatDateTime(date) {
   }
 }
 
-function calculatePercent(correct, total) {
-  if (!total) return 0;
-  return Math.round((correct / total) * 100);
-}
-
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const tmp = array[i];
-    array[i] = array[j];
-    array[j] = tmp;
-  }
-  return array;
-}
-
-function getActiveTotalCards() {
-  if (Array.isArray(activeCardIndices) && activeCardIndices.length > 0) {
-    return activeCardIndices.length;
-  }
-  if (currentSet && Array.isArray(currentSet.cards)) {
-    return currentSet.cards.length;
-  }
-  return 0;
-}
-
-function getActiveCardAt(index) {
-  if (!currentSet || !Array.isArray(currentSet.cards)) {
-    return null;
-  }
-  if (Array.isArray(activeCardIndices) && activeCardIndices.length > 0) {
-    const realIndex = activeCardIndices[index] ?? null;
-    if (realIndex == null) return null;
-    return currentSet.cards[realIndex] || null;
-  }
-  return currentSet.cards[index] || null;
-}
-
-function getRecommendedDeckFromScores() {
-  if (!scoresByDeck || typeof scoresByDeck !== 'object') {
-    return null;
-  }
-
-  const entries = Object.entries(scoresByDeck);
-  if (!entries.length) return null;
-
-  const deckMetrics = entries
-    .map(([deckKey, stats]) => {
-      if (!stats || typeof stats !== 'object') return null;
-      const history = Array.isArray(stats.history) ? stats.history : [];
-      const plays = history.length;
-
-      let avgPercent = 0;
-      if (plays > 0) {
-        let sum = 0;
-        history.forEach((h) => {
-          const p =
-            h && typeof h.percent === 'number'
-              ? h.percent
-              : calculatePercent(h.correct || 0, h.total || 0);
-          sum += p;
-        });
-        avgPercent = Math.round(sum / plays);
-      } else {
-        avgPercent = calculatePercent(stats.lastCorrect || 0, stats.lastTotal || 0);
-      }
-
-      return {
-        deckKey,
-        setName: stats.setName || null,
-        plays,
-        avgPercent
-      };
-    })
-    .filter(Boolean);
-
-  if (!deckMetrics.length) return null;
-
-  // Prefer decks that have been played fewer times; break ties by lower average percent.
-  let best = null;
-  deckMetrics.forEach((m) => {
-    if (!best) {
-      best = m;
-      return;
-    }
-    if (m.plays < best.plays) {
-      best = m;
-      return;
-    }
-    if (m.plays === best.plays && m.avgPercent < best.avgPercent) {
-      best = m;
-    }
-  });
-
-  return best;
-}
-
 function updateScoreSidebar() {
   const scoreSetName = $('score-set-name');
   const scorePercent = $('score-percent');
@@ -173,7 +78,7 @@ function updateScoreSidebar() {
 
   if (!currentSet) {
     scoreSetName.innerHTML =
-      '<span class="set-name-placeholder">No set selected</span>';
+      '<span class="set-name-placeholder">No topic selected</span>';
     scorePercent.innerHTML = '0<span class="unit">%</span>';
     scoreDetailLine.textContent = '0 / 0 correct';
     scoreLastPlayed.textContent = '';
@@ -182,16 +87,16 @@ function updateScoreSidebar() {
     statLastSession.textContent = '–';
     statBestScore.textContent = '–';
 
-    const rec = getRecommendedDeckFromScores();
+    const rec = quiz.getRecommendedDeckFromScores(scoresByDeck);
     if (rec) {
-      const name = rec.setName || rec.deckKey || 'Unnamed deck';
-      historySummary.textContent = `Suggested next deck: ${name} · ${rec.plays || 0} session${
+      const name = rec.setName || rec.deckKey || 'Unnamed category';
+      historySummary.textContent = `Suggested next category: ${name} · ${rec.plays || 0} session${
         rec.plays === 1 ? '' : 's'
       } · avg score ${rec.avgPercent}%`;
       scoreTag.textContent = 'Recommendation ready';
     } else {
       historySummary.textContent =
-        'Load a flashcard set to start tracking your performance. Scores are saved per set name on this machine.';
+        'Load a topic to start tracking your performance. Scores are saved per topic name on this machine.';
       scoreTag.textContent = 'Awaiting session';
     }
     return;
@@ -201,8 +106,8 @@ function updateScoreSidebar() {
   const existingSet = scoresBySet[setKey];
   const deckKey = currentFilePath || null;
   const existingDeck = deckKey && scoresByDeck ? scoresByDeck[deckKey] : null;
-  const totalCards = getActiveTotalCards();
-  const sessionPercent = calculatePercent(currentCorrectCount, totalCards);
+  const totalCards = quiz.getActiveTotalCards(currentSet, activeCardIndices);
+  const sessionPercent = quiz.calculatePercent(currentCorrectCount, totalCards);
 
   scoreSetName.textContent = currentSet.name;
   scorePercent.innerHTML = `${sessionPercent}<span class="unit">%</span>`;
@@ -222,8 +127,8 @@ function updateScoreSidebar() {
     const deckStats = existingDeck || existingSet;
     const setStats = existingSet || existingDeck;
 
-    const deckLastP = calculatePercent(deckStats.lastCorrect, deckStats.lastTotal || 0);
-    const setBestP = calculatePercent(setStats.bestCorrect, setStats.bestTotal || 0);
+    const deckLastP = quiz.calculatePercent(deckStats.lastCorrect, deckStats.lastTotal || 0);
+    const setBestP = quiz.calculatePercent(setStats.bestCorrect, setStats.bestTotal || 0);
 
     statLastSession.textContent = `${deckStats.lastCorrect} / ${
       deckStats.lastTotal
@@ -233,22 +138,23 @@ function updateScoreSidebar() {
     } (${setBestP}%)`;
 
     const lastPlayedSource = deckStats.lastPlayed || setStats.lastPlayed || null;
-    historySummary.textContent = `Deck last session: ${deckStats.lastCorrect} / ${
+    historySummary.textContent = `Category last session: ${deckStats.lastCorrect} / ${
       deckStats.lastTotal
-    } (${deckLastP}%). Best across all decks for this set: ${setStats.bestCorrect} / ${
+    } (${deckLastP}%). Best for this topic across categories: ${setStats.bestCorrect} / ${
       setStats.bestTotal
     } (${setBestP}%).`;
     scoreLastPlayed.textContent = lastPlayedSource
       ? `Last: ${formatDateTime(lastPlayedSource)}`
       : '';
-    scoreTag.textContent = existingDeck && existingSet ? 'Deck + set history' : 'History loaded';
+    scoreTag.textContent =
+      existingDeck && existingSet ? 'Category + topic history' : 'History loaded';
   } else {
     statLastSession.textContent = '–';
     statBestScore.textContent = '–';
     historySummary.textContent =
-      'No previous sessions recorded for this set yet. Complete a run to store your score.';
+      'No previous sessions recorded for this topic yet. Complete a run to store your score.';
     scoreLastPlayed.textContent = '';
-    scoreTag.textContent = 'New set';
+    scoreTag.textContent = 'New topic';
   }
 }
 
@@ -264,16 +170,16 @@ function renderQuestion() {
     return;
   }
 
-  const totalCards = getActiveTotalCards();
+  const totalCards = quiz.getActiveTotalCards(currentSet, activeCardIndices);
 
   if (!currentSet.cards || totalCards === 0) {
     container.innerHTML =
-      '<div class="empty-state">This set has no cards defined.</div>';
+      '<div class="empty-state">This topic has no cards defined.</div>';
     updateScoreSidebar();
     return;
   }
 
-  const card = getActiveCardAt(currentIndex);
+  const card = quiz.getActiveCardAt(currentSet, activeCardIndices, currentIndex);
   hasAnsweredCurrent = false;
 
   const wrapper = document.createElement('div');
@@ -304,7 +210,7 @@ function renderQuestion() {
 
   const choiceKeys = card.choices ? Object.keys(card.choices) : [];
   // Shuffle the possible answers so they appear in a random order each time.
-  shuffleArray(choiceKeys);
+  quiz.shuffleArray(choiceKeys);
 
   let answerSummaryBox = null;
 
@@ -327,6 +233,10 @@ function renderQuestion() {
         div.classList.add('incorrect', 'chosen');
       }
       div.classList.add('disabled');
+    });
+
+    choicesContainer.querySelectorAll('.choice-expl').forEach((el) => {
+      el.hidden = false;
     });
 
     // Show explanation
@@ -394,14 +304,13 @@ function renderQuestion() {
 
     const expl = document.createElement('div');
     expl.className = 'choice-expl';
-    if (choiceData && choiceData.explanation) {
-      expl.textContent = choiceData.explanation;
-    } else {
-      expl.textContent = '';
-    }
+    const choiceWrongHint =
+      (choiceData && choiceData.explanation) || (choiceData && choiceData.reason) || '';
+    expl.textContent = choiceWrongHint;
+    expl.hidden = true;
 
     body.appendChild(text);
-    if (expl.textContent) {
+    if (choiceWrongHint) {
       body.appendChild(expl);
     }
 
@@ -471,11 +380,11 @@ async function persistFinalScore() {
   if (!currentSet) return;
   const setKey = currentSet.name;
   const deckKey = currentFilePath || null;
-  const total = getActiveTotalCards();
+  const total = quiz.getActiveTotalCards(currentSet, activeCardIndices);
   const correct = currentCorrectCount;
   const now = new Date().toISOString();
   const sessionStartedAt = currentSessionStartedAt || null;
-  const percent = calculatePercent(correct, total);
+  const percent = quiz.calculatePercent(correct, total);
 
   const historyEntry = {
     startedAt: sessionStartedAt,
@@ -499,7 +408,7 @@ async function persistFinalScore() {
       history: setHistory
     };
   } else {
-    const bestPercent = calculatePercent(existingSet.bestCorrect, existingSet.bestTotal || 0);
+    const bestPercent = quiz.calculatePercent(existingSet.bestCorrect, existingSet.bestTotal || 0);
     const better = percent > bestPercent;
 
     let setHistory = Array.isArray(existingSet.history) ? existingSet.history.slice() : [];
@@ -534,7 +443,7 @@ async function persistFinalScore() {
         history: deckHistory
       };
     } else {
-      const bestPercentDeck = calculatePercent(
+      const bestPercentDeck = quiz.calculatePercent(
         existingDeck.bestCorrect,
         existingDeck.bestTotal || 0
       );
@@ -596,16 +505,16 @@ async function persistFinalScore() {
 function showSessionSummary() {
   if (!currentSet) return;
   const container = $('question-container');
-  const total = getActiveTotalCards();
+  const total = quiz.getActiveTotalCards(currentSet, activeCardIndices);
   const correct = currentCorrectCount;
-  const percent = calculatePercent(correct, total);
+  const percent = quiz.calculatePercent(correct, total);
 
   const summary = document.createElement('div');
   summary.className = 'question-card';
   summary.innerHTML = `
     <div class="question-header-row">
       <div class="q-index-pill">Session Complete</div>
-      <div class="pill-muted">You can reload this set to practice again</div>
+      <div class="pill-muted">You can start another session on this topic to practice again</div>
     </div>
     <div class="question-text" style="margin-bottom:12px;">
       You answered <strong>${correct}</strong> out of <strong>${total}</strong> questions correctly.
@@ -623,7 +532,7 @@ function showSessionSummary() {
             ? 'Great work — just a bit more practice to reach 100%.'
             : percent >= 50
             ? 'Solid attempt; another pass through the cards will help solidify things.'
-            : 'Good start. Consider re-running the set and focusing on the explanations for missed questions.'
+            : 'Good start. Consider another pass and focusing on the explanations for missed questions.'
         }
       </div>
     </div>
@@ -664,25 +573,63 @@ async function loadScoresOnStartup() {
   updateScoreSidebar();
 }
 
-function getDefaultSelectedSetPath(decks) {
-  if (!Array.isArray(decks)) return null;
-  for (let i = 0; i < decks.length; i += 1) {
-    const d = decks[i];
-    if (Array.isArray(d.sets) && d.sets.length > 0) {
-      return d.sets[0].id;
-    }
-    if (d.sets == null) {
-      return d.id;
-    }
-  }
-  return null;
-}
-
 function toggleDeckExpanded(deckManifestPath) {
   if (expandedDeckIds.has(deckManifestPath)) {
     expandedDeckIds.delete(deckManifestPath);
   } else {
     expandedDeckIds.add(deckManifestPath);
+  }
+}
+
+async function startDynamicQuizForTopic(category, setInfo) {
+  if (!category || !Array.isArray(category.sets)) {
+    window.alert('Dynamic quizzes are only available for topics inside a category (library folder).');
+    return;
+  }
+  if (!setInfo || !setInfo.id) {
+    window.alert('Select a topic row with a Dynamic button.');
+    return;
+  }
+  const topicLabel =
+    (setInfo.name && String(setInfo.name).trim()) ||
+    (setInfo.fileName && String(setInfo.fileName).replace(/\.json$/i, '').trim()) ||
+    'Untitled topic';
+  try {
+    const res = await withLlmGenerationWaitModal(
+      {
+        title: 'Generating question pool',
+        message: `Creating 50 questions about “${topicLabel}”. Slower models can take a minute or more.`
+      },
+      () =>
+        api.generateDynamicQuizViaLlm({
+          deckManifestPath: category.id,
+          topicLabel,
+          topicSetPath: setInfo.id
+        })
+    );
+    if (!res || !res.ok) {
+      if (res && res.cancelled) {
+        renderDeckList();
+        return;
+      }
+      window.alert(res && res.error ? res.error : 'Generation failed.');
+      renderDeckList();
+      return;
+    }
+    const sessionSet = {
+      ...res.set,
+      name: `${topicLabel} · dynamic quiz`,
+      description:
+        res.set && res.set.description
+          ? `${res.set.description} Each session randomly picks 10 questions from a ~50-card LLM pool.`
+          : 'Each session randomly picks 10 questions from a ~50-card LLM pool.'
+    };
+    startSessionFromSet(sessionSet, setInfo.id);
+    renderDeckList();
+  } catch (e) {
+    console.error(e);
+    window.alert(e && e.message ? e.message : 'Dynamic quiz failed.');
+    renderDeckList();
   }
 }
 
@@ -712,7 +659,7 @@ function renderDeckList() {
 
   if (!availableDecks || availableDecks.length === 0) {
     if (statusEl) {
-      statusEl.textContent = 'No decks';
+      statusEl.textContent = 'Empty library';
     }
     if (emptyEl) {
       emptyEl.style.display = 'block';
@@ -725,19 +672,25 @@ function renderDeckList() {
     emptyEl.style.display = 'none';
   }
 
-  let setCount = 0;
+  let topicCount = 0;
+  let categoryCount = 0;
   availableDecks.forEach((d) => {
     if (Array.isArray(d.sets)) {
-      setCount += d.sets.length;
+      categoryCount += 1;
+      topicCount += d.sets.length;
     } else if (d.sets == null) {
-      setCount += 1;
+      topicCount += 1;
     }
   });
 
   if (statusEl) {
-    const deckLabel = `${availableDecks.length} deck${availableDecks.length === 1 ? '' : 's'}`;
-    const setLabel = `${setCount} set${setCount === 1 ? '' : 's'}`;
-    statusEl.textContent = `${deckLabel} · ${setLabel}`;
+    if (categoryCount > 0) {
+      const catLabel = `${categoryCount} categor${categoryCount === 1 ? 'y' : 'ies'}`;
+      const topLabel = `${topicCount} topic${topicCount === 1 ? '' : 's'}`;
+      statusEl.textContent = `${catLabel} · ${topLabel}`;
+    } else {
+      statusEl.textContent = `${topicCount} topic file${topicCount === 1 ? '' : 's'}`;
+    }
   }
 
   function applySelectionHighlight() {
@@ -760,7 +713,7 @@ function renderDeckList() {
 
       const nameEl = document.createElement('div');
       nameEl.className = 'deck-item-name';
-      nameEl.textContent = deck.name || deck.fileName || 'Untitled deck';
+      nameEl.textContent = deck.name || deck.fileName || 'Untitled topic';
 
       item.appendChild(nameEl);
 
@@ -794,24 +747,30 @@ function renderDeckList() {
 
     const title = document.createElement('div');
     title.className = 'deck-tree-deck-title';
-    title.textContent = deck.name || deck.fileName || 'Untitled deck';
+    title.textContent = deck.name || deck.fileName || 'Untitled category';
 
-    const countPill = document.createElement('span');
-    countPill.className = 'deck-tree-deck-count';
-    countPill.textContent = `${setRows.length}`;
+    const editCategoryBtn = document.createElement('button');
+    editCategoryBtn.type = 'button';
+    editCategoryBtn.className = 'deck-tree-category-settings-btn';
+    editCategoryBtn.textContent = '...';
+    editCategoryBtn.title =
+      'Edit this category: rename, import topics, generate with LLM, or delete the category';
+    editCategoryBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openManageCategoryModal(deck.id).catch((err) => console.error('Edit category:', err));
+    });
 
     header.appendChild(toggle);
     header.appendChild(title);
-    header.appendChild(countPill);
+    header.appendChild(editCategoryBtn);
 
-    const onHeaderActivate = (e) => {
+    header.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       toggleDeckExpanded(deck.id);
       renderDeckList();
-    };
-
-    header.addEventListener('click', onHeaderActivate);
+    });
 
     const children = document.createElement('div');
     children.className = 'deck-tree-children';
@@ -821,23 +780,37 @@ function renderDeckList() {
       const emptySet = document.createElement('div');
       emptySet.className = 'deck-tree-empty-sets';
       emptySet.textContent =
-        'No card set JSON files in this deck\'s folder. Add .json files (with name + cards) there.';
+        'No topic JSON files in this category’s folder yet. Add .json files (name + cards) there.';
       children.appendChild(emptySet);
     } else {
       setRows.forEach((setInfo) => {
         const row = document.createElement('div');
-        row.className = 'deck-item deck-tree-set';
+        row.className = 'deck-item deck-tree-set deck-tree-topic-row';
         row.setAttribute('data-set-path', setInfo.id);
 
         const nameEl = document.createElement('div');
         nameEl.className = 'deck-item-name';
-        nameEl.textContent = setInfo.name || setInfo.fileName || 'Untitled set';
+        nameEl.textContent = setInfo.name || setInfo.fileName || 'Untitled topic';
+
+        const dynBtn = document.createElement('button');
+        dynBtn.type = 'button';
+        dynBtn.className = 'deck-tree-dynamic-inline-btn';
+        dynBtn.textContent = 'Dynamic';
+        dynBtn.title =
+          'LLM generates 50 transient cards about this topic (plus optional JSON description and category manifest as context); each session quizzes 10 at random. Configure Settings → LLM first.';
 
         row.appendChild(nameEl);
+        row.appendChild(dynBtn);
 
         if (setInfo.id === selectedDeckId) {
           row.classList.add('selected');
         }
+
+        dynBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          void startDynamicQuizForTopic(deck, setInfo);
+        });
 
         row.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -871,7 +844,7 @@ async function loadDeckListOnStartup() {
           expandedDeckIds.add(d.id);
         }
       });
-      selectedDeckId = getDefaultSelectedSetPath(availableDecks);
+      selectedDeckId = quiz.getDefaultSelectedSetPath(availableDecks);
     } else {
       availableDecks = [];
       expandedDeckIds = new Set();
@@ -969,7 +942,7 @@ function startSessionFromSet(set, filePath) {
 
   const maxQuestions = Array.isArray(set.cards) ? set.cards.length : 0;
   if (!maxQuestions) {
-    window.alert('This set has no cards defined.');
+    window.alert('This topic has no cards defined.');
     return false;
   }
 
@@ -988,7 +961,7 @@ function startSessionFromSet(set, filePath) {
   for (let i = 0; i < maxQuestions; i += 1) {
     activeCardIndices.push(i);
   }
-  shuffleArray(activeCardIndices);
+  quiz.shuffleArray(activeCardIndices);
   activeCardIndices = activeCardIndices.slice(0, questionCount);
 
   const metaName = $('set-meta');
@@ -998,11 +971,11 @@ function startSessionFromSet(set, filePath) {
   const descEl = metaName ? metaName.querySelector('.set-meta-desc') : null;
 
   if (titleEl) {
-    titleEl.textContent = set.name || 'Unnamed set';
+    titleEl.textContent = set.name || 'Unnamed topic';
     titleEl.classList.remove('set-name-placeholder');
   }
   if (descEl) {
-    descEl.textContent = set.description || 'No description provided for this flashcard set.';
+    descEl.textContent = set.description || 'No description provided for this topic.';
   }
   if (setFileLabel) {
     setFileLabel.textContent = filePath ? `File: ${filePath}` : '';
@@ -1062,7 +1035,7 @@ function renderSessionHistory() {
     right.className = 'session-score';
     const total = s.totalQuestions != null ? s.totalQuestions : s.total || 0;
     const correct = s.correct != null ? s.correct : s.lastCorrect || 0;
-    const percent = calculatePercent(correct, total);
+    const percent = quiz.calculatePercent(correct, total);
     right.textContent = `${percent}%`;
 
     row.appendChild(left);
@@ -1076,7 +1049,7 @@ async function handleLoadSetClicked() {
   try {
     if (!selectedDeckId) {
       window.alert(
-        'Please expand a deck and select a card set on the left before starting a new session.'
+        'Please expand a category and select a topic on the left before starting a new session.'
       );
       return;
     }
@@ -1084,7 +1057,7 @@ async function handleLoadSetClicked() {
     const result = await api.loadDeckByPath(selectedDeckId);
     if (!result || result.canceled) {
       if (result && result.error) {
-        window.alert(`Could not load this deck:\n\n${result.error}`);
+        window.alert(`Could not load this topic:\n\n${result.error}`);
       }
       return;
     }
@@ -1104,22 +1077,160 @@ function closeAllModals() {
   window.removeEventListener('keydown', onModalEscapeKey);
   const root = getModalRoot();
   if (root) {
-    const open = root.querySelector('.modal-overlay');
-    if (open && typeof open._froggyUpdateUnsub === 'function') {
-      try {
-        open._froggyUpdateUnsub();
-      } catch (_) {
-        /* ignore */
+    Array.from(root.querySelectorAll('.modal-overlay')).forEach((open) => {
+      if (open && typeof open._froggyUpdateUnsub === 'function') {
+        try {
+          open._froggyUpdateUnsub();
+        } catch (_) {
+          /* ignore */
+        }
       }
-    }
+      if (open && typeof open._froggyWaitTeardown === 'function') {
+        try {
+          open._froggyWaitTeardown();
+        } catch (_) {
+          /* ignore */
+        }
+      }
+    });
     root.innerHTML = '';
   }
   document.body.style.overflow = '';
 }
 
+/**
+ * Modal wait while the main process calls the LLM. Stacks above any open modal.
+ * Escape or Cancel aborts the in-flight HTTP request.
+ */
+async function withLlmGenerationWaitModal({ title, message }, invokeGeneration) {
+  if (typeof invokeGeneration !== 'function') {
+    throw new Error('invokeGeneration is required.');
+  }
+  const root = getModalRoot();
+  if (!root) {
+    return invokeGeneration();
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay llm-wait-overlay';
+
+  const dialog = document.createElement('div');
+  dialog.className = 'modal-dialog';
+  dialog.style.maxWidth = '440px';
+  dialog.addEventListener('click', (e) => e.stopPropagation());
+
+  const header = document.createElement('div');
+  header.className = 'modal-header';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'modal-title';
+  titleEl.textContent = title || 'Generating…';
+  header.appendChild(titleEl);
+
+  const body = document.createElement('div');
+  body.className = 'modal-body';
+  const msg = document.createElement('p');
+  msg.style.margin = '0 0 14px';
+  msg.style.fontSize = '13px';
+  msg.style.lineHeight = '1.45';
+  msg.style.color = 'var(--text)';
+  msg.textContent =
+    message ||
+    'Talking to your LLM provider. This may take a while depending on model size and card count.';
+
+  const spinnerRow = document.createElement('div');
+  spinnerRow.className = 'llm-wait-spinner-row';
+  const spinner = document.createElement('div');
+  spinner.className = 'llm-wait-spinner';
+  spinner.setAttribute('aria-hidden', 'true');
+  spinnerRow.appendChild(spinner);
+
+  const hint = document.createElement('div');
+  hint.className = 'modal-hint';
+  hint.style.marginTop = '10px';
+  hint.textContent = 'Press Escape or use Cancel to stop the request.';
+
+  body.appendChild(msg);
+  body.appendChild(spinnerRow);
+  body.appendChild(hint);
+
+  const footer = document.createElement('div');
+  footer.className = 'modal-footer';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'modal-btn';
+  cancelBtn.textContent = 'Cancel';
+
+  footer.appendChild(cancelBtn);
+  dialog.appendChild(header);
+  dialog.appendChild(body);
+  dialog.appendChild(footer);
+  overlay.appendChild(dialog);
+
+  let cleaned = false;
+  const teardown = () => {
+    if (cleaned) return;
+    cleaned = true;
+    if (overlay._froggyWaitEsc) {
+      window.removeEventListener('keydown', overlay._froggyWaitEsc, true);
+      overlay._froggyWaitEsc = null;
+    }
+    overlay.remove();
+    const still = root.querySelector('.modal-overlay');
+    if (!still) {
+      document.body.style.overflow = '';
+    }
+  };
+  overlay._froggyWaitTeardown = teardown;
+
+  const onEscapeCapture = (e) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (!cancelBtn.disabled) {
+      cancelBtn.click();
+    }
+  };
+
+  cancelBtn.addEventListener('click', () => {
+    if (cancelBtn.disabled) return;
+    cancelBtn.disabled = true;
+    if (typeof api.cancelLlmGeneration === 'function') {
+      api.cancelLlmGeneration().catch((err) => console.error(err));
+    }
+  });
+
+  root.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  overlay.classList.add('is-open');
+  overlay._froggyWaitEsc = onEscapeCapture;
+  window.addEventListener('keydown', onEscapeCapture, true);
+
+  try {
+    return await invokeGeneration();
+  } finally {
+    teardown();
+    delete overlay._froggyWaitTeardown;
+  }
+}
+
 function onModalEscapeKey(e) {
-  if (e.key === 'Escape') {
-    closeAllModals();
+  if (e.key !== 'Escape') return;
+  const root = getModalRoot();
+  let reopenCategoryPath = null;
+  if (root) {
+    const overlays = root.querySelectorAll('.modal-overlay');
+    for (let i = overlays.length - 1; i >= 0; i--) {
+      const el = overlays[i];
+      const p = el && el._froggyReopenCategoryOnDismiss;
+      if (typeof p === 'string' && p.length) {
+        reopenCategoryPath = p;
+        break;
+      }
+    }
+  }
+  closeAllModals();
+  if (reopenCategoryPath) {
+    void openManageCategoryModal(reopenCategoryPath);
   }
 }
 
@@ -1131,52 +1242,6 @@ function mountModalOverlay(overlay) {
   document.body.style.overflow = 'hidden';
   overlay.classList.add('is-open');
   window.addEventListener('keydown', onModalEscapeKey);
-}
-
-async function openExternalJsonSession() {
-  try {
-    const result = await api.openFlashcardFile();
-    if (!result) {
-      window.alert(
-        'Something went wrong while opening the file (no response from main process). Please try again.'
-      );
-      return;
-    }
-
-    if (result.canceled) {
-      if (result.error) {
-        window.alert(`Could not load this file:\n\n${result.error}`);
-      }
-      return;
-    }
-
-    const { set, filePath } = result;
-
-    if (filePath) {
-      const existingIndex = availableDecks.findIndex((d) => d.id === filePath);
-      const displayName = (set.name && String(set.name)) || 'Untitled deck';
-      const fileName = filePath.split(/[\\/]/).pop() || filePath;
-
-      const deckEntry = {
-        id: filePath,
-        name: displayName,
-        fileName,
-        sets: null
-      };
-
-      if (existingIndex >= 0) {
-        availableDecks[existingIndex] = deckEntry;
-      } else {
-        availableDecks.push(deckEntry);
-      }
-      selectedDeckId = filePath;
-      renderDeckList();
-    }
-
-    startSessionFromSet(set, filePath);
-  } catch (e) {
-    console.error('Failed to open flashcard file:', e);
-  }
 }
 
 function isStructuredDeck(deck) {
@@ -1194,7 +1259,7 @@ async function openCardSetEditorModal(filePath, onAfterSave) {
   header.className = 'modal-header';
   const title = document.createElement('div');
   title.className = 'modal-title';
-  title.textContent = 'Edit card set JSON';
+  title.textContent = 'Edit topic JSON';
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
   closeBtn.className = 'modal-close';
@@ -1216,7 +1281,7 @@ async function openCardSetEditorModal(filePath, onAfterSave) {
   const hint = document.createElement('div');
   hint.className = 'modal-hint';
   hint.textContent =
-    'Must match Froggy Flash format: name, description (optional), cards with question, choices, answer, explanation per card.';
+    'Must match Froggy Flash topic JSON: name, description (optional), cards with question, choices, answer, explanation per card.';
   body.appendChild(hint);
 
   const footer = document.createElement('div');
@@ -1253,11 +1318,6 @@ async function openCardSetEditorModal(filePath, onAfterSave) {
   dialog.appendChild(body);
   dialog.appendChild(footer);
   overlay.appendChild(dialog);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      closeAllModals();
-    }
-  });
 
   mountModalOverlay(overlay);
 
@@ -1276,24 +1336,33 @@ async function openCardSetEditorModal(filePath, onAfterSave) {
   }
 }
 
-async function openGenerateSetModal(deckManifestPath, onDone) {
+async function openGenerateSetModal(deckManifestPath, onDone, options) {
+  const reopenCategoryEditor = !!(options && options.reopenCategoryEditor);
   const settings = await api.loadLlmSettings();
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
+  overlay._froggyReopenCategoryOnDismiss = reopenCategoryEditor ? deckManifestPath : null;
 
   const dialog = document.createElement('div');
   dialog.className = 'modal-dialog modal-wide';
+
+  function leaveToCategoryEditor() {
+    closeAllModals();
+    if (reopenCategoryEditor) {
+      void openManageCategoryModal(deckManifestPath);
+    }
+  }
 
   const header = document.createElement('div');
   header.className = 'modal-header';
   const title = document.createElement('div');
   title.className = 'modal-title';
-  title.textContent = 'Generate card set with LLM';
+  title.textContent = 'Generate topic with LLM';
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
   closeBtn.className = 'modal-close';
   closeBtn.textContent = 'Close';
-  closeBtn.addEventListener('click', () => closeAllModals());
+  closeBtn.addEventListener('click', leaveToCategoryEditor);
   header.appendChild(title);
   header.appendChild(closeBtn);
 
@@ -1303,7 +1372,7 @@ async function openGenerateSetModal(deckManifestPath, onDone) {
   const topicWrap = document.createElement('div');
   topicWrap.className = 'modal-field';
   const topicLabel = document.createElement('label');
-  topicLabel.textContent = 'Topic (be as detailed as possible)';
+  topicLabel.textContent = 'Scope for the new topic (be as detailed as possible)';
   const topicTa = document.createElement('textarea');
   topicTa.className = 'modal-textarea';
   topicTa.style.minHeight = '160px';
@@ -1341,7 +1410,7 @@ async function openGenerateSetModal(deckManifestPath, onDone) {
   cancel.type = 'button';
   cancel.className = 'modal-btn';
   cancel.textContent = 'Cancel';
-  cancel.addEventListener('click', () => closeAllModals());
+  cancel.addEventListener('click', leaveToCategoryEditor);
   const run = document.createElement('button');
   run.type = 'button';
   run.className = 'modal-btn modal-btn-primary';
@@ -1353,33 +1422,38 @@ async function openGenerateSetModal(deckManifestPath, onDone) {
       return;
     }
     const n = parseInt(numInput.value, 10);
-    run.disabled = true;
-    cancel.disabled = true;
-    run.textContent = 'Working…';
     try {
-      const res = await api.generateCardSetViaLlm({
-        deckManifestPath,
-        topic,
-        numCards: n
-      });
+      const res = await withLlmGenerationWaitModal(
+        {
+          title: 'Generating cards',
+          message:
+            'The LLM is writing your topic JSON. Larger card counts and slower models can take several minutes.'
+        },
+        () =>
+          api.generateCardSetViaLlm({
+            deckManifestPath,
+            topic,
+            numCards: n
+          })
+      );
       if (!res || !res.ok) {
+        if (res && res.cancelled) {
+          return;
+        }
         window.alert(res && res.error ? res.error : 'Generation failed.');
-        run.disabled = false;
-        cancel.disabled = false;
-        run.textContent = 'Generate';
         return;
       }
-      closeAllModals();
       if (typeof onDone === 'function') {
         await onDone();
       }
-      window.alert(`Saved new card set:\n\n${res.filePath || ''}`);
+      closeAllModals();
+      if (reopenCategoryEditor) {
+        await openManageCategoryModal(deckManifestPath);
+      }
+      window.alert(`Saved new topic file:\n\n${res.filePath || ''}`);
     } catch (e) {
       console.error(e);
       window.alert('Generation failed.');
-      run.disabled = false;
-      cancel.disabled = false;
-      run.textContent = 'Generate';
     }
   });
   footer.appendChild(cancel);
@@ -1389,11 +1463,6 @@ async function openGenerateSetModal(deckManifestPath, onDone) {
   dialog.appendChild(body);
   dialog.appendChild(footer);
   overlay.appendChild(dialog);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      closeAllModals();
-    }
-  });
 
   mountModalOverlay(overlay);
 }
@@ -1639,11 +1708,6 @@ async function openLlmSettingsModal() {
   dialog.appendChild(body);
   dialog.appendChild(footer);
   overlay.appendChild(dialog);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      closeAllModals();
-    }
-  });
 
   mountModalOverlay(overlay);
 
@@ -1758,12 +1822,31 @@ async function openLlmSettingsModal() {
   }
 }
 
-async function openManageDecksModal() {
+/**
+ * @param {string | null} initialManifestPath Category `.deck.json` path, or `null` to open the add-category flow only.
+ */
+async function openManageCategoryModal(initialManifestPath) {
   await loadDeckListOnStartup();
 
-  let selectedDeck = null;
-  /** When true, the deck list is replaced by the “new deck + generate” form. */
-  let showAddDeckForm = false;
+  if (initialManifestPath) {
+    const probe = availableDecks.find((x) => x.id === initialManifestPath);
+    if (!probe) {
+      window.alert('That category is no longer available.');
+      return;
+    }
+    if (!isStructuredDeck(probe)) {
+      window.alert(
+        'This library entry is a standalone topic JSON file, not a category folder. Select it in the list to study.'
+      );
+      return;
+    }
+  }
+
+  const categoryManifestPath = initialManifestPath;
+  /** When set, the modal shows a rename form for that deck manifest path. */
+  let renameDeckId = null;
+  /** When true, the modal shows only the “new category + generate” form. */
+  let showAddDeckForm = !initialManifestPath;
   /** Default for “number of cards” when opening the add-deck form (from LLM settings). */
   let addDeckDefaultNumCards = 10;
 
@@ -1777,37 +1860,149 @@ async function openManageDecksModal() {
   header.className = 'modal-header';
   const title = document.createElement('div');
   title.className = 'modal-title';
-  title.textContent = 'Manage decks';
-  const closeBtn = document.createElement('button');
-  closeBtn.type = 'button';
-  closeBtn.className = 'modal-close';
-  closeBtn.textContent = 'Close';
-  closeBtn.addEventListener('click', () => closeAllModals());
+  title.textContent = showAddDeckForm ? 'Add category' : 'Edit category';
+  const headerActions = document.createElement('div');
+  headerActions.className = 'modal-header-actions';
   header.appendChild(title);
-  header.appendChild(closeBtn);
+  header.appendChild(headerActions);
 
   const body = document.createElement('div');
   body.className = 'modal-body';
 
-  const listHost = document.createElement('div');
-  const detailHost = document.createElement('div');
+  const contentHost = document.createElement('div');
+  contentHost.className = 'manage-category-body';
 
   async function refreshAndRedraw() {
     await loadDeckListOnStartup();
-    if (selectedDeck) {
-      const still = availableDecks.find((d) => d.id === selectedDeck.id);
-      selectedDeck = still || null;
+    if (categoryManifestPath) {
+      const still = availableDecks.find((d) => d.id === categoryManifestPath);
+      if (!still || !isStructuredDeck(still)) {
+        closeAllModals();
+        renderDeckList();
+        return;
+      }
     }
     renderAll();
   }
 
+  /** Header row (right side): rename and delete category. */
+  function attachCategoryPrimaryActions(container, d) {
+    container.className = 'modal-header-actions';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.type = 'button';
+    renameBtn.className = 'modal-btn';
+    renameBtn.textContent = 'Rename category';
+    renameBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!isStructuredDeck(d)) {
+        window.alert('Rename this file from Explorer, or import it into a category folder.');
+        return;
+      }
+      renameDeckId = d.id;
+      renderAll();
+    });
+
+    const delDeckBtn = document.createElement('button');
+    delDeckBtn.type = 'button';
+    delDeckBtn.className = 'modal-btn modal-btn-danger';
+    delDeckBtn.textContent = 'Delete category';
+    delDeckBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const label = d.name || d.fileName || 'this category';
+      if (!window.confirm(`Delete ${label}? This cannot be undone.`)) {
+        return;
+      }
+      const res = await api.deleteDeck({ deckManifestPath: d.id });
+      if (!res || !res.ok) {
+        window.alert(res && res.error ? res.error : 'Delete failed.');
+        return;
+      }
+      closeAllModals();
+      await loadDeckListOnStartup();
+      renderDeckList();
+    });
+
+    container.appendChild(renameBtn);
+    container.appendChild(delDeckBtn);
+  }
+
+  /** After topic list: import / LLM actions for this category. */
+  function attachCategoryTopicsToolbarActions(container, d) {
+    container.className = 'manage-actions manage-category-topics-toolbar';
+
+    const importBtn = document.createElement('button');
+    importBtn.type = 'button';
+    importBtn.className = 'modal-btn';
+    importBtn.textContent = 'Import JSON…';
+    importBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!isStructuredDeck(d)) {
+        window.alert('Import is for categories. Add a category, then import topic JSON into it.');
+        return;
+      }
+      const pick = await api.pickJsonFiles();
+      if (pick.canceled || !pick.filePaths || !pick.filePaths.length) {
+        return;
+      }
+      const replace = window.confirm(
+        'Replace all existing topic (.json) files in this category before importing?\n\n' +
+          'OK = delete current files in the category folder, then copy the selected files.\n' +
+          'Cancel = keep existing files and add copies (renamed if filenames clash).'
+      );
+      const res = await api.importDeckSets({
+        deckManifestPath: d.id,
+        filePaths: pick.filePaths,
+        replaceExisting: replace
+      });
+      if (!res || !res.ok) {
+        window.alert(res && res.error ? res.error : 'Import failed.');
+        return;
+      }
+      await refreshAndRedraw();
+    });
+
+    const genBtn = document.createElement('button');
+    genBtn.type = 'button';
+    genBtn.className = 'modal-btn';
+    genBtn.textContent = 'Generate with LLM…';
+    genBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!isStructuredDeck(d)) {
+        window.alert('LLM generation saves into a category folder. Create a category first, then generate.');
+        return;
+      }
+      closeAllModals();
+      await openGenerateSetModal(
+        d.id,
+        async () => {
+          await loadDeckListOnStartup();
+        },
+        { reopenCategoryEditor: true }
+      );
+    });
+
+    const settingsBtn = document.createElement('button');
+    settingsBtn.type = 'button';
+    settingsBtn.className = 'modal-btn';
+    settingsBtn.textContent = 'LLM settings…';
+    settingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeAllModals();
+      openLlmSettingsModal();
+    });
+
+    container.appendChild(importBtn);
+    container.appendChild(genBtn);
+    container.appendChild(settingsBtn);
+  }
+
   function renderAll() {
-    listHost.innerHTML = '';
-    detailHost.innerHTML = '';
+    contentHost.innerHTML = '';
+    headerActions.replaceChildren();
 
     if (showAddDeckForm) {
-      detailHost.style.display = 'none';
-
+      title.textContent = 'Add category';
       const panel = document.createElement('div');
       panel.className = 'add-deck-panel';
 
@@ -1815,14 +2010,14 @@ async function openManageDecksModal() {
       intro.className = 'modal-hint';
       intro.style.marginBottom = '12px';
       intro.textContent =
-        'Creates a folder deck and generates an initial card set with your LLM (Settings → LLM).';
+        'Creates a category folder and generates an initial topic JSON file with your LLM (Settings → LLM).';
       panel.appendChild(intro);
 
       const nameWrap = document.createElement('div');
       nameWrap.className = 'modal-field';
       const nameLabel = document.createElement('label');
       nameLabel.setAttribute('for', 'add-deck-name-input');
-      nameLabel.textContent = 'Deck name';
+      nameLabel.textContent = 'Category name';
       const nameInput = document.createElement('input');
       nameInput.id = 'add-deck-name-input';
       nameInput.type = 'text';
@@ -1836,7 +2031,7 @@ async function openManageDecksModal() {
       descWrap.className = 'modal-field';
       const descLabel = document.createElement('label');
       descLabel.setAttribute('for', 'add-deck-desc-input');
-      descLabel.textContent = 'What should this set cover?';
+      descLabel.textContent = 'What should topics in this category cover?';
       const descTa = document.createElement('textarea');
       descTa.id = 'add-deck-desc-input';
       descTa.className = 'modal-textarea';
@@ -1863,7 +2058,7 @@ async function openManageDecksModal() {
       numWrap.appendChild(numInput);
       panel.appendChild(numWrap);
 
-      listHost.appendChild(panel);
+      contentHost.appendChild(panel);
 
       const formActions = document.createElement('div');
       formActions.className = 'manage-actions';
@@ -1874,24 +2069,23 @@ async function openManageDecksModal() {
       cancelForm.className = 'modal-btn';
       cancelForm.textContent = 'Cancel';
       cancelForm.addEventListener('click', () => {
-        showAddDeckForm = false;
-        renderAll();
+        closeAllModals();
       });
 
       const submitForm = document.createElement('button');
       submitForm.type = 'button';
       submitForm.className = 'modal-btn modal-btn-primary';
-      submitForm.textContent = 'Create deck & generate cards';
+      submitForm.textContent = 'Create category & generate topic';
       submitForm.addEventListener('click', async () => {
         const deckName = String(nameInput.value || '').trim();
         const topic = String(descTa.value || '').trim();
         const n = parseInt(numInput.value, 10);
         if (!deckName) {
-          window.alert('Please enter a deck name.');
+          window.alert('Please enter a category name.');
           return;
         }
         if (!topic) {
-          window.alert('Please describe what the set of questions should cover.');
+          window.alert('Please describe what questions in this category should cover.');
           return;
         }
         if (!Number.isFinite(n) || n < 1 || n > 50) {
@@ -1900,51 +2094,53 @@ async function openManageDecksModal() {
         }
         submitForm.disabled = true;
         cancelForm.disabled = true;
-        submitForm.textContent = 'Creating deck…';
+        submitForm.textContent = 'Creating category…';
         let createdPath = null;
         try {
-          const resCreate = await api.createDeck({ name: deckName });
+          const resCreate = await api.createDeck({ name: deckName, description: topic });
           if (!resCreate || !resCreate.ok) {
-            window.alert(resCreate && resCreate.error ? resCreate.error : 'Could not create deck.');
-            submitForm.disabled = false;
-            cancelForm.disabled = false;
-            submitForm.textContent = 'Create deck & generate cards';
+            window.alert(resCreate && resCreate.error ? resCreate.error : 'Could not create category.');
             return;
           }
           createdPath = resCreate.deckManifestPath;
           submitForm.textContent = 'Generating cards…';
-          const resGen = await api.generateCardSetViaLlm({
-            deckManifestPath: createdPath,
-            topic,
-            numCards: n
-          });
+          const resGen = await withLlmGenerationWaitModal(
+            {
+              title: 'Generating cards',
+              message:
+                'Creating flashcards for your new category. You can cancel to stop the LLM request (the empty category folder will remain).'
+            },
+            () =>
+              api.generateCardSetViaLlm({
+                deckManifestPath: createdPath,
+                topic,
+                numCards: n
+              })
+          );
           if (!resGen || !resGen.ok) {
-            window.alert(
-              (resGen && resGen.error ? resGen.error : 'Generation failed.') +
-                '\n\nThe deck was created; you can use “Generate with LLM…” on it later.'
-            );
+            if (!(resGen && resGen.cancelled)) {
+              window.alert(
+                (resGen && resGen.error ? resGen.error : 'Generation failed.') +
+                  '\n\nThe category was created; you can use “Generate with LLM…” on it later.'
+              );
+            }
           } else if (resGen.filePath) {
-            window.alert(`Deck created and card set saved:\n\n${resGen.filePath}`);
+            window.alert(`Category created and topic saved:\n\n${resGen.filePath}`);
           }
-          showAddDeckForm = false;
-          await refreshAndRedraw();
-          const created = availableDecks.find((x) => x.id === createdPath);
-          if (created) {
-            selectedDeck = created;
-          }
-          renderAll();
+          closeAllModals();
+          await loadDeckListOnStartup();
+          renderDeckList();
         } catch (err) {
           console.error(err);
           window.alert('Something went wrong. Check the console for details.');
-          showAddDeckForm = false;
           if (createdPath) {
-            await refreshAndRedraw();
-            const created = availableDecks.find((x) => x.id === createdPath);
-            if (created) {
-              selectedDeck = created;
-            }
+            await loadDeckListOnStartup();
+            renderDeckList();
           }
-          renderAll();
+        } finally {
+          submitForm.disabled = false;
+          cancelForm.disabled = false;
+          submitForm.textContent = 'Create category & generate topic';
         }
       });
 
@@ -1954,307 +2150,181 @@ async function openManageDecksModal() {
       return;
     }
 
-    const topBar = document.createElement('div');
-    topBar.className = 'manage-actions';
-    topBar.style.marginBottom = '10px';
-    const addDeckBtn = document.createElement('button');
-    addDeckBtn.type = 'button';
-    addDeckBtn.className = 'modal-btn modal-btn-primary';
-    addDeckBtn.textContent = 'Add deck';
-    addDeckBtn.addEventListener('click', async () => {
-      let def = 10;
-      try {
-        const s = await api.loadLlmSettings();
-        if (s && Number.isFinite(s.defaultNumCards) && s.defaultNumCards > 0) {
-          def = Math.min(50, Math.max(1, Math.round(s.defaultNumCards)));
-        }
-      } catch (_) {
-        /* keep 10 */
-      }
-      addDeckDefaultNumCards = def;
-      showAddDeckForm = true;
-      renderAll();
-    });
-    topBar.appendChild(addDeckBtn);
-    listHost.appendChild(topBar);
-
-    if (!availableDecks.length) {
-      const empty = document.createElement('div');
-      empty.className = 'modal-hint';
-      empty.textContent =
-        'No decks yet. Click “Add deck” to name a deck, describe what to cover, and generate cards with your LLM (or import JSON later).';
-      listHost.appendChild(empty);
-      detailHost.style.display = 'none';
+    if (!categoryManifestPath) {
+      title.textContent = 'Edit category';
+      const err = document.createElement('div');
+      err.className = 'modal-hint';
+      err.textContent = 'Nothing to edit.';
+      contentHost.appendChild(err);
       return;
     }
 
-    detailHost.style.display = 'block';
+    const category = availableDecks.find((d) => d.id === categoryManifestPath);
+    if (!category || !isStructuredDeck(category)) {
+      title.textContent = 'Edit category';
+      const err = document.createElement('div');
+      err.className = 'modal-hint';
+      err.textContent = 'Category not found.';
+      contentHost.appendChild(err);
+      return;
+    }
 
-    availableDecks.forEach((deck) => {
-      const row = document.createElement('div');
-      row.className = 'manage-deck-row';
-      if (selectedDeck && selectedDeck.id === deck.id) {
-        row.classList.add('is-selected');
-      }
-      const t = document.createElement('div');
-      t.className = 'manage-deck-title';
-      t.textContent = deck.name || deck.fileName || 'Untitled';
-      const meta = document.createElement('div');
-      meta.className = 'manage-deck-meta';
-      if (isStructuredDeck(deck)) {
-        meta.textContent = `Folder deck · ${deck.sets.length} card set file${
-          deck.sets.length === 1 ? '' : 's'
-        }`;
-      } else {
-        meta.textContent = 'Single JSON file in decks folder';
-      }
-      row.appendChild(t);
-      row.appendChild(meta);
-      row.addEventListener('click', () => {
-        selectedDeck = deck;
+    if (renameDeckId && renameDeckId !== categoryManifestPath) {
+      renameDeckId = null;
+    }
+
+    if (renameDeckId === categoryManifestPath) {
+      const displayName = category.name || category.fileName || 'Untitled';
+      title.textContent = `Rename category: ${displayName}`;
+      const renameHeading = document.createElement('div');
+      renameHeading.className = 'manage-deck-title';
+      renameHeading.style.marginBottom = '6px';
+      renameHeading.textContent = 'Rename category';
+      contentHost.appendChild(renameHeading);
+      const nameWrap = document.createElement('div');
+      nameWrap.className = 'modal-field';
+      const nameLabel = document.createElement('label');
+      nameLabel.textContent = 'Display name';
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'modal-input';
+      nameInput.value = category.name || '';
+      nameWrap.appendChild(nameLabel);
+      nameWrap.appendChild(nameInput);
+      contentHost.appendChild(nameWrap);
+      const renameActions = document.createElement('div');
+      renameActions.className = 'manage-actions';
+      const cancelRename = document.createElement('button');
+      cancelRename.type = 'button';
+      cancelRename.className = 'modal-btn';
+      cancelRename.textContent = 'Cancel';
+      cancelRename.addEventListener('click', () => {
+        renameDeckId = null;
         renderAll();
       });
-      listHost.appendChild(row);
-    });
-
-    if (!selectedDeck && availableDecks.length) {
-      selectedDeck = availableDecks[0];
-    }
-
-    if (!selectedDeck) {
+      const saveRename = document.createElement('button');
+      saveRename.type = 'button';
+      saveRename.className = 'modal-btn modal-btn-primary';
+      saveRename.textContent = 'Save';
+      saveRename.addEventListener('click', async () => {
+        const next = String(nameInput.value || '').trim();
+        if (!next) {
+          window.alert('Please enter a name.');
+          return;
+        }
+        saveRename.disabled = true;
+        cancelRename.disabled = true;
+        try {
+          const res = await api.renameDeck({
+            deckManifestPath: category.id,
+            newName: next
+          });
+          if (!res || !res.ok) {
+            window.alert(res && res.error ? res.error : 'Rename failed.');
+            saveRename.disabled = false;
+            cancelRename.disabled = false;
+            return;
+          }
+          renameDeckId = null;
+          await refreshAndRedraw();
+        } catch (err) {
+          console.error(err);
+          window.alert('Rename failed.');
+          saveRename.disabled = false;
+          cancelRename.disabled = false;
+        }
+      });
+      renameActions.appendChild(cancelRename);
+      renameActions.appendChild(saveRename);
+      contentHost.appendChild(renameActions);
+      setTimeout(() => {
+        nameInput.focus();
+        nameInput.select();
+      }, 0);
       return;
     }
 
-    const d = selectedDeck;
-    const detailTitle = document.createElement('div');
-    detailTitle.className = 'manage-deck-title';
-    detailTitle.style.marginBottom = '6px';
-    detailTitle.textContent = d.name || d.fileName || 'Untitled';
-    detailHost.appendChild(detailTitle);
-
-    const actions = document.createElement('div');
-    actions.className = 'manage-actions';
-
-    const renameBtn = document.createElement('button');
-    renameBtn.type = 'button';
-    renameBtn.className = 'modal-btn';
-    renameBtn.textContent = 'Rename deck';
-    renameBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!isStructuredDeck(d)) {
-        window.alert('Rename this file from Explorer, or import it into a folder deck.');
-        return;
-      }
-      const next = window.prompt('New display name:', d.name || '');
-      if (!next || !String(next).trim()) {
-        return;
-      }
-      const res = await api.renameDeck({ deckManifestPath: d.id, newName: String(next).trim() });
-      if (!res || !res.ok) {
-        window.alert(res && res.error ? res.error : 'Rename failed.');
-        return;
-      }
-      await refreshAndRedraw();
-    });
-
-    const importBtn = document.createElement('button');
-    importBtn.type = 'button';
-    importBtn.className = 'modal-btn';
-    importBtn.textContent = 'Import JSON…';
-    importBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!isStructuredDeck(d)) {
-        window.alert('Import is for folder decks. Add a deck, then import JSON files into it.');
-        return;
-      }
-      const pick = await api.pickJsonFiles();
-      if (pick.canceled || !pick.filePaths || !pick.filePaths.length) {
-        return;
-      }
-      const replace = window.confirm(
-        'Replace all existing card set (.json) files in this deck before importing?\n\n' +
-          'OK = delete current sets in the deck folder, then copy the selected files.\n' +
-          'Cancel = keep existing files and add copies (renamed if filenames clash).'
-      );
-      const res = await api.importDeckSets({
-        deckManifestPath: d.id,
-        filePaths: pick.filePaths,
-        replaceExisting: replace
-      });
-      if (!res || !res.ok) {
-        window.alert(res && res.error ? res.error : 'Import failed.');
-        return;
-      }
-      await refreshAndRedraw();
-    });
-
-    const genBtn = document.createElement('button');
-    genBtn.type = 'button';
-    genBtn.className = 'modal-btn';
-    genBtn.textContent = 'Generate with LLM…';
-    genBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!isStructuredDeck(d)) {
-        window.alert('LLM generation saves into a folder deck. Create a deck first, then generate.');
-        return;
-      }
-      closeAllModals();
-      await openGenerateSetModal(d.id, async () => {
-        await loadDeckListOnStartup();
-      });
-    });
-
-    const settingsBtn = document.createElement('button');
-    settingsBtn.type = 'button';
-    settingsBtn.className = 'modal-btn';
-    settingsBtn.textContent = 'LLM settings…';
-    settingsBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeAllModals();
-      openLlmSettingsModal();
-    });
-
-    const delDeckBtn = document.createElement('button');
-    delDeckBtn.type = 'button';
-    delDeckBtn.className = 'modal-btn modal-btn-danger';
-    delDeckBtn.textContent = 'Delete deck';
-    delDeckBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const label = d.name || d.fileName || 'this deck';
-      if (!window.confirm(`Delete ${label}? This cannot be undone.`)) {
-        return;
-      }
-      const res = await api.deleteDeck({ deckManifestPath: d.id });
-      if (!res || !res.ok) {
-        window.alert(res && res.error ? res.error : 'Delete failed.');
-        return;
-      }
-      selectedDeck = null;
-      await refreshAndRedraw();
-    });
-
-    actions.appendChild(renameBtn);
-    actions.appendChild(importBtn);
-    actions.appendChild(genBtn);
-    actions.appendChild(settingsBtn);
-    actions.appendChild(delDeckBtn);
-    detailHost.appendChild(actions);
+    const displayName = category.name || category.fileName || 'Untitled';
+    title.textContent = `Edit category: ${displayName}`;
+    attachCategoryPrimaryActions(headerActions, category);
 
     const setsTitle = document.createElement('div');
-    setsTitle.className = 'modal-hint';
-    setsTitle.style.marginTop = '14px';
-    setsTitle.textContent = 'Card sets (JSON files under this deck):';
-    detailHost.appendChild(setsTitle);
+    setsTitle.className = 'manage-category-topics-heading';
+    setsTitle.textContent = 'Topics (JSON files in this category):';
+    contentHost.appendChild(setsTitle);
 
-    if (isStructuredDeck(d)) {
-      if (!d.sets.length) {
-        const none = document.createElement('div');
-        none.className = 'modal-hint';
-        none.textContent = 'No card sets yet — import or generate JSON files.';
-        detailHost.appendChild(none);
-      } else {
-        d.sets.forEach((setInfo) => {
-          const row = document.createElement('div');
-          row.className = 'manage-set-row';
-          const left = document.createElement('div');
-          left.textContent = setInfo.name || setInfo.fileName || 'Untitled set';
-          const btns = document.createElement('div');
-          btns.style.display = 'flex';
-          btns.style.gap = '6px';
-
-          const edit = document.createElement('button');
-          edit.type = 'button';
-          edit.className = 'modal-btn';
-          edit.textContent = 'Edit';
-          edit.addEventListener('click', async (ev) => {
-            ev.stopPropagation();
-            closeAllModals();
-            await openCardSetEditorModal(setInfo.id, async () => {
-              await loadDeckListOnStartup();
-            });
-          });
-
-          const del = document.createElement('button');
-          del.type = 'button';
-          del.className = 'modal-btn modal-btn-danger';
-          del.textContent = 'Delete';
-          del.addEventListener('click', async (ev) => {
-            ev.stopPropagation();
-            if (!window.confirm(`Delete card set "${setInfo.name || setInfo.fileName}"?`)) {
-              return;
-            }
-            const res = await api.deleteCardSetFile(setInfo.id);
-            if (!res || !res.ok) {
-              window.alert(res && res.error ? res.error : 'Delete failed.');
-              return;
-            }
-            await refreshAndRedraw();
-          });
-
-          btns.appendChild(edit);
-          btns.appendChild(del);
-          row.appendChild(left);
-          row.appendChild(btns);
-          detailHost.appendChild(row);
-        });
-      }
+    if (!category.sets.length) {
+      const none = document.createElement('div');
+      none.className = 'modal-hint';
+      none.textContent = 'No topics yet — import or generate JSON files.';
+      contentHost.appendChild(none);
     } else {
-      const row = document.createElement('div');
-      row.className = 'manage-set-row';
-      const left = document.createElement('div');
-      left.textContent = d.fileName || 'Flashcard JSON';
-      const btns = document.createElement('div');
-      btns.style.display = 'flex';
-      btns.style.gap = '6px';
-      const edit = document.createElement('button');
-      edit.type = 'button';
-      edit.className = 'modal-btn';
-      edit.textContent = 'Edit JSON';
-      edit.addEventListener('click', async (ev) => {
-        ev.stopPropagation();
-        closeAllModals();
-        await openCardSetEditorModal(d.id, async () => {
-          await loadDeckListOnStartup();
+      category.sets.forEach((setInfo) => {
+        const row = document.createElement('div');
+        row.className = 'manage-set-row';
+        const left = document.createElement('div');
+        left.textContent = setInfo.name || setInfo.fileName || 'Untitled set';
+        const btns = document.createElement('div');
+        btns.style.display = 'flex';
+        btns.style.gap = '6px';
+
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'modal-btn';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          closeAllModals();
+          await openCardSetEditorModal(setInfo.id, async () => {
+            await loadDeckListOnStartup();
+          });
         });
+
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'modal-btn modal-btn-danger';
+        del.textContent = 'Delete';
+        del.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          if (!window.confirm(`Delete topic "${setInfo.name || setInfo.fileName}"?`)) {
+            return;
+          }
+          const res = await api.deleteCardSetFile(setInfo.id);
+          if (!res || !res.ok) {
+            window.alert(res && res.error ? res.error : 'Delete failed.');
+            return;
+          }
+          await refreshAndRedraw();
+        });
+
+        btns.appendChild(edit);
+        btns.appendChild(del);
+        row.appendChild(left);
+        row.appendChild(btns);
+        contentHost.appendChild(row);
       });
-      btns.appendChild(edit);
-      row.appendChild(left);
-      row.appendChild(btns);
-      detailHost.appendChild(row);
     }
+
+    const topicsToolbar = document.createElement('div');
+    attachCategoryTopicsToolbarActions(topicsToolbar, category);
+    contentHost.appendChild(topicsToolbar);
   }
 
-  body.appendChild(listHost);
-  body.appendChild(detailHost);
+  body.appendChild(contentHost);
 
   const footer = document.createElement('div');
   footer.className = 'modal-footer';
-  const openOnce = document.createElement('button');
-  openOnce.type = 'button';
-  openOnce.className = 'modal-btn';
-  openOnce.textContent = 'Open JSON file (session only)…';
-  openOnce.title = 'Does not copy into a deck; useful for one-off files anywhere on disk.';
-  openOnce.addEventListener('click', async () => {
-    closeAllModals();
-    await openExternalJsonSession();
-  });
   const done = document.createElement('button');
   done.type = 'button';
   done.className = 'modal-btn modal-btn-primary';
   done.textContent = 'Done';
   done.addEventListener('click', () => closeAllModals());
-  footer.appendChild(openOnce);
   footer.appendChild(done);
 
   dialog.appendChild(header);
   dialog.appendChild(body);
   dialog.appendChild(footer);
   overlay.appendChild(dialog);
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      closeAllModals();
-    }
-  });
 
   mountModalOverlay(overlay);
   renderAll();
@@ -2266,10 +2336,10 @@ window.addEventListener('DOMContentLoaded', () => {
     loadBtn.addEventListener('click', handleLoadSetClicked);
   }
 
-  const manageBtn = $('deck-manage-btn');
-  if (manageBtn) {
-    manageBtn.addEventListener('click', () => {
-      openManageDecksModal().catch((err) => console.error('Manage decks:', err));
+  const addCategoryBtn = $('deck-add-category-btn');
+  if (addCategoryBtn) {
+    addCategoryBtn.addEventListener('click', () => {
+      openManageCategoryModal(null).catch((err) => console.error('Add category:', err));
     });
   }
 

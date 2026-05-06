@@ -4,6 +4,13 @@ const fs = require('fs');
 const os = require('os');
 const https = require('https');
 const http = require('http');
+const { normalizeScoresShape } = require('./lib/normalizeScoresShape');
+const {
+  validateFlashcardSetShape,
+  parseFlashcardSetFromLlmOutput
+} = require('./lib/flashcardSchema');
+const { resolvePathUnderDecksDir, assertPathInsideDirectory } = require('./lib/deckPaths');
+const { slugifyDeckStem } = require('./lib/deckNaming');
 
 let mainWindow;
 let devReloadWatcher = null;
@@ -253,32 +260,117 @@ function writeLlmSettingsToDisk(partial) {
   }
 }
 
+function createLlmAbortedError() {
+  const e = new Error('Generation was cancelled.');
+  e.code = 'LLM_ABORTED';
+  return e;
+}
+
+function isLlmAbortedError(err) {
+  return Boolean(err && err.code === 'LLM_ABORTED');
+}
+
+/** In-flight HTTP for LLM chat; cancel-llm-generation calls abort(). */
+let activeLlmHttpSlot = null;
+
+function validateLlmSettingsConfigured(settings) {
+  const s = settings || readLlmSettingsFromDisk();
+  if (!s || typeof s !== 'object') {
+    return { ok: false, error: 'LLM settings are missing. Open Settings → LLM.' };
+  }
+  const provider = s.provider === 'openai' ? 'openai' : 'ollama';
+  if (provider === 'openai') {
+    const key = s.apiKey != null ? String(s.apiKey).trim() : '';
+    if (!key) {
+      return { ok: false, error: 'OpenAI API key is not set. Add it in Settings → LLM.' };
+    }
+  } else {
+    const base = s.ollamaBaseUrl != null ? String(s.ollamaBaseUrl).trim() : '';
+    const model = s.ollamaModel != null ? String(s.ollamaModel).trim() : '';
+    if (!base || !model) {
+      return { ok: false, error: 'Configure Ollama base URL and model in Settings → LLM.' };
+    }
+  }
+  return { ok: true };
+}
+
+async function fetchLlmAssistantText(settings, systemMessage, userMessage, signal) {
+  const check = validateLlmSettingsConfigured(settings);
+  if (!check.ok) {
+    throw new Error(check.error);
+  }
+  const provider = settings.provider === 'openai' ? 'openai' : 'ollama';
+  let assistantText = '';
+
+  if (provider === 'ollama') {
+    const base = (settings.ollamaBaseUrl || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+    const model = settings.ollamaModel || 'llama3.2';
+    const url = `${base}/api/chat`;
+    const bodyObj = {
+      model,
+      stream: false,
+      messages: [
+        { role: 'system', content: systemMessage },
+        { role: 'user', content: userMessage }
+      ]
+    };
+    const parsed = await fetchUrlJson(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj),
+      signal
+    });
+    assistantText =
+      (parsed &&
+        parsed.message &&
+        typeof parsed.message.content === 'string' &&
+        parsed.message.content) ||
+      '';
+    if (!assistantText && typeof parsed.response === 'string') {
+      assistantText = parsed.response;
+    }
+  } else {
+    const base = (settings.openaiBaseUrl || 'https://api.openai.com').replace(/\/+$/, '');
+    const model = settings.openaiModel || 'gpt-4o-mini';
+    const apiKey = String(settings.apiKey || '').trim();
+    const url = `${base}/v1/chat/completions`;
+    const bodyObj = {
+      model,
+      messages: [
+        { role: 'system', content: systemMessage },
+        { role: 'user', content: userMessage }
+      ],
+      temperature: 0.4
+    };
+    const parsed = await fetchUrlJson(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(bodyObj),
+      signal
+    });
+    const choice = parsed && parsed.choices && parsed.choices[0];
+    assistantText =
+      choice && choice.message && typeof choice.message.content === 'string'
+        ? choice.message.content
+        : '';
+  }
+
+  if (!assistantText) {
+    throw new Error('Model returned an empty response.');
+  }
+  return assistantText;
+}
+
 function resolveDecksDirAbsolute() {
   return path.resolve(getBundledDecksDir());
 }
 
 /** Ensures fullPath is inside the decks directory (after resolve). Returns resolved fullPath. */
 function assertPathInsideDecksDir(fullPath) {
-  if (!fullPath || typeof fullPath !== 'string') {
-    throw new Error('Invalid path.');
-  }
-  const decksDir = resolveDecksDirAbsolute();
-  const resolved = path.resolve(fullPath);
-  const rel = path.relative(decksDir, resolved);
-  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
-    throw new Error('Path must stay inside the decks directory.');
-  }
-  return resolved;
-}
-
-function slugifyDeckStem(name) {
-  const trimmed = (name && String(name).trim()) || 'deck';
-  const base = trimmed
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-  return base || 'deck';
+  return assertPathInsideDirectory(fullPath, resolveDecksDirAbsolute());
 }
 
 function ensureUniqueDeckStem(decksDir, baseStem) {
@@ -319,79 +411,44 @@ function getSetsDirectoryForDeckManifest(manifestPath) {
   return defaultSetsDir;
 }
 
-function validateFlashcardSetShape(data) {
-  if (!data || typeof data !== 'object') {
-    throw new Error('JSON must be an object.');
-  }
-  if (!data.name || typeof data.name !== 'string') {
-    throw new Error('Set must include a string "name".');
-  }
-  if (data.description != null && typeof data.description !== 'string') {
-    throw new Error('"description" must be a string if present.');
-  }
-  if (!Array.isArray(data.cards)) {
-    throw new Error('Set must include a "cards" array.');
-  }
-  data.cards.forEach((card, i) => {
-    if (!card || typeof card !== 'object') {
-      throw new Error(`Card ${i + 1} is invalid.`);
+/** Reads topic JSON "description" when the file lives under the category's sets directory. */
+function readTopicDescriptionInsideSetsDir(topicJsonPath, setsDir) {
+  try {
+    const resolved = assertPathInsideDecksDir(topicJsonPath);
+    const lower = resolved.toLowerCase();
+    if (!lower.endsWith('.json') || lower.endsWith('.deck.json')) {
+      return '';
     }
-    if (!card.question || typeof card.question !== 'string') {
-      throw new Error(`Card ${i + 1} needs a string "question".`);
+    const setsAbs = path.resolve(setsDir);
+    const rel = path.relative(setsAbs, resolved);
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) {
+      return '';
     }
-    if (!card.choices || typeof card.choices !== 'object') {
-      throw new Error(`Card ${i + 1} needs a "choices" object.`);
+    const raw = fs.readFileSync(resolved, 'utf8');
+    const data = JSON.parse(raw);
+    if (data && typeof data === 'object' && data.description != null) {
+      return String(data.description).trim();
     }
-    const keys = Object.keys(card.choices);
-    if (!keys.length) {
-      throw new Error(`Card ${i + 1} has empty choices.`);
-    }
-    if (!card.answer || typeof card.answer !== 'string' || !card.choices[card.answer]) {
-      throw new Error(`Card ${i + 1}: "answer" must match a key in choices.`);
-    }
-    if (typeof card.explanation !== 'string') {
-      throw new Error(`Card ${i + 1} needs a string "explanation".`);
-    }
-    keys.forEach((k) => {
-      const ch = card.choices[k];
-      if (!ch || typeof ch !== 'object' || typeof ch.text !== 'string') {
-        throw new Error(`Card ${i + 1} choice "${k}" needs a "text" string.`);
-      }
-    });
-  });
-  return true;
-}
-
-function stripCodeFences(text) {
-  if (!text || typeof text !== 'string') return text;
-  let t = text.trim();
-  const fence = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/im;
-  const m = t.match(fence);
-  if (m) {
-    return m[1].trim();
+  } catch (_) {
+    /* ignore */
   }
-  return t;
-}
-
-function extractJsonObjectString(text) {
-  const cleaned = stripCodeFences(text);
-  const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('No JSON object found in model output.');
-  }
-  return cleaned.slice(start, end + 1);
-}
-
-function parseFlashcardSetFromLlmOutput(text) {
-  const jsonStr = extractJsonObjectString(text);
-  const data = JSON.parse(jsonStr);
-  validateFlashcardSetShape(data);
-  return data;
+  return '';
 }
 
 function fetchUrlJson(urlString, options) {
+  const opts = options || {};
+  const signal = opts.signal;
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn) => {
+      if (settled) return;
+      settled = true;
+      if (signal && abortHandler) {
+        signal.removeEventListener('abort', abortHandler);
+      }
+      fn();
+    };
+
     let u;
     try {
       u = new URL(urlString);
@@ -400,13 +457,40 @@ function fetchUrlJson(urlString, options) {
       return;
     }
     const lib = u.protocol === 'https:' ? https : http;
-    const req = lib.request(
+
+    let req;
+    let abortHandler;
+
+    if (signal) {
+      if (signal.aborted) {
+        reject(createLlmAbortedError());
+        return;
+      }
+      abortHandler = () => {
+        try {
+          if (req) req.destroy();
+        } catch (_) {
+          /* ignore */
+        }
+        finish(() => reject(createLlmAbortedError()));
+      };
+      signal.addEventListener('abort', abortHandler, { once: true });
+    }
+
+    req = lib.request(
       u,
       {
-        method: options.method || 'GET',
-        headers: options.headers || {}
+        method: opts.method || 'GET',
+        headers: opts.headers || {}
       },
       (res) => {
+        res.on('error', (e) => {
+          if (signal && signal.aborted) {
+            finish(() => reject(createLlmAbortedError()));
+          } else {
+            finish(() => reject(e));
+          }
+        });
         let body = '';
         res.setEncoding('utf8');
         res.on('data', (chunk) => {
@@ -414,20 +498,26 @@ function fetchUrlJson(urlString, options) {
         });
         res.on('end', () => {
           if (res.statusCode && res.statusCode >= 400) {
-            reject(new Error(`HTTP ${res.statusCode}: ${body.slice(0, 500)}`));
+            finish(() => reject(new Error(`HTTP ${res.statusCode}: ${body.slice(0, 500)}`)));
             return;
           }
           try {
-            resolve(JSON.parse(body));
+            finish(() => resolve(JSON.parse(body)));
           } catch (err) {
-            reject(new Error('Invalid JSON in response: ' + (err && err.message)));
+            finish(() => reject(new Error('Invalid JSON in response: ' + (err && err.message))));
           }
         });
       }
     );
-    req.on('error', reject);
-    if (options.body) {
-      req.write(options.body);
+    req.on('error', (e) => {
+      if (signal && signal.aborted) {
+        finish(() => reject(createLlmAbortedError()));
+      } else {
+        finish(() => reject(e));
+      }
+    });
+    if (opts.body) {
+      req.write(opts.body);
     }
     req.end();
   });
@@ -655,28 +745,6 @@ function getScoresFilePath() {
   return path.join(baseDir, 'scores.json');
 }
 
-function normalizeScoresShape(rawValue) {
-  // New structured format: { bySet: { [setName]: stats }, byDeck: { [deckKey]: stats } }
-  if (rawValue && typeof rawValue === 'object' && (rawValue.bySet || rawValue.byDeck)) {
-    const bySet =
-      rawValue.bySet && typeof rawValue.bySet === 'object' && rawValue.bySet !== null
-        ? rawValue.bySet
-        : {};
-    const byDeck =
-      rawValue.byDeck && typeof rawValue.byDeck === 'object' && rawValue.byDeck !== null
-        ? rawValue.byDeck
-        : {};
-    return { bySet, byDeck };
-  }
-
-  // Legacy flat object shape: treat as bySet only.
-  if (rawValue && typeof rawValue === 'object') {
-    return { bySet: rawValue, byDeck: {} };
-  }
-
-  return { bySet: {}, byDeck: {} };
-}
-
 function readScoresFromDisk() {
   try {
     const scoresPath = getScoresFilePath();
@@ -713,55 +781,6 @@ function writeScoresToDisk(scoresPayload) {
 }
 
 // IPC handlers
-ipcMain.handle('open-flashcard-file', async () => {
-  const decksDir = path.join(getBaseDir(), 'decks');
-
-  // Ensure the decks directory exists so the dialog opens there.
-  try {
-    if (!fs.existsSync(decksDir)) {
-      fs.mkdirSync(decksDir, { recursive: true });
-    }
-  } catch (err) {
-    console.error('Failed to ensure decks directory exists:', err);
-  }
-
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Open Flashcard Set JSON',
-    defaultPath: decksDir,
-    properties: ['openFile'],
-    filters: [{ name: 'JSON Files', extensions: ['json'] }]
-  });
-
-  if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
-    return { canceled: true };
-  }
-
-  const filePath = result.filePaths[0];
-
-  try {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const data = JSON.parse(raw);
-
-    // Basic shape validation
-    if (!data || typeof data !== 'object') {
-      throw new Error('JSON must be an object.');
-    }
-    if (!data.name || !Array.isArray(data.cards)) {
-      throw new Error('JSON must include "name" and "cards" array.');
-    }
-
-    return {
-      canceled: false,
-      filePath,
-      set: data
-    };
-  } catch (err) {
-    console.error('Failed to load flashcard JSON:', err);
-    dialog.showErrorBox('Invalid Flashcard File', err.message);
-    return { canceled: true, error: err.message };
-  }
-});
-
 function loadDeckFromFile(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
   const data = JSON.parse(raw);
@@ -780,27 +799,6 @@ function loadDeckFromFile(filePath) {
   };
 }
 
-/** Resolve a path under decksDir; rejects ".." segments and absolute paths. */
-function resolvePathUnderDecksDir(decksDir, relativePath) {
-  if (!relativePath || typeof relativePath !== 'string') {
-    return null;
-  }
-  const trimmed = relativePath.trim();
-  if (!trimmed || trimmed.includes('..')) {
-    return null;
-  }
-  if (path.isAbsolute(trimmed)) {
-    return null;
-  }
-  const resolved = path.resolve(decksDir, trimmed);
-  const baseResolved = path.resolve(decksDir);
-  const rel = path.relative(baseResolved, resolved);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    return null;
-  }
-  return resolved;
-}
-
 function readDeckManifestMeta(deckJsonPath) {
   const raw = fs.readFileSync(deckJsonPath, 'utf8');
   const data = JSON.parse(raw);
@@ -810,13 +808,18 @@ function readDeckManifestMeta(deckJsonPath) {
   if (!data.name || typeof data.name !== 'string') {
     throw new Error('Deck manifest must include a string "name".');
   }
+  if (data.description != null && typeof data.description !== 'string') {
+    throw new Error('Deck manifest "description" must be a string if present.');
+  }
   let setsDirOverride = null;
   if (data.setsDir && typeof data.setsDir === 'string') {
     setsDirOverride = data.setsDir;
   } else if (data.setsDirectory && typeof data.setsDirectory === 'string') {
     setsDirOverride = data.setsDirectory;
   }
-  return { name: String(data.name), setsDirOverride };
+  const description =
+    data.description != null && typeof data.description === 'string' ? data.description : '';
+  return { name: String(data.name), setsDirOverride, description };
 }
 
 function listCardSetSummariesInDir(setsDir) {
@@ -874,11 +877,13 @@ ipcMain.handle('list-decks', async () => {
       const stem = entry.name.replace(/\.deck\.json$/i, '');
       let deckName = stem;
       let setsDirOverride = null;
+      let deckDescription = '';
 
       try {
         const meta = readDeckManifestMeta(deckPath);
         deckName = meta.name;
         setsDirOverride = meta.setsDirOverride;
+        deckDescription = meta.description || '';
       } catch (err) {
         console.error('Failed to read deck manifest:', deckPath, err);
       }
@@ -898,6 +903,7 @@ ipcMain.handle('list-decks', async () => {
         id: deckPath,
         name: deckName,
         fileName: entry.name,
+        description: deckDescription,
         sets
       });
     }
@@ -1114,7 +1120,12 @@ ipcMain.handle('create-deck', async (_event, payload) => {
     const manifestPath = path.join(decksDir, `${stem}.deck.json`);
     const setsDir = path.join(decksDir, stem);
     fs.mkdirSync(setsDir, { recursive: true });
+    const description =
+      payload && payload.description != null ? String(payload.description).trim() : '';
     const manifest = { name };
+    if (description) {
+      manifest.description = description;
+    }
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
     return { ok: true, deckManifestPath: manifestPath, stem, name };
   } catch (err) {
@@ -1304,7 +1315,21 @@ ipcMain.handle('delete-card-set-file', async (_event, filePath) => {
   }
 });
 
+ipcMain.handle('cancel-llm-generation', () => {
+  if (activeLlmHttpSlot && typeof activeLlmHttpSlot.abort === 'function') {
+    try {
+      activeLlmHttpSlot.abort();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  return { ok: true };
+});
+
 ipcMain.handle('generate-card-set-via-llm', async (_event, payload) => {
+  const ac = new AbortController();
+  const slot = { abort: () => ac.abort() };
+  activeLlmHttpSlot = slot;
   try {
     const topic = payload && payload.topic ? String(payload.topic).trim() : '';
     const deckManifestPath = payload && payload.deckManifestPath;
@@ -1327,73 +1352,16 @@ ipcMain.handle('generate-card-set-via-llm', async (_event, payload) => {
     if (!Number.isFinite(numCards) || numCards < 1) numCards = 10;
     if (numCards > 50) numCards = 50;
 
-    const provider = settings.provider === 'openai' ? 'openai' : 'ollama';
     const userMessage = `Create a flashcard set for the following topic. Be accurate and educational.\n\nTopic (use all detail below):\n${topic}\n\nProduce exactly ${numCards} cards in the cards array.`;
 
     const systemMessage = `${FLASHCARD_FORMAT_LLM_INSTRUCTIONS}\n\nOutput only the JSON object.`;
 
-    let assistantText = '';
-
-    if (provider === 'ollama') {
-      const base = (settings.ollamaBaseUrl || 'http://127.0.0.1:11434').replace(/\/+$/, '');
-      const model = settings.ollamaModel || 'llama3.2';
-      const url = `${base}/api/chat`;
-      const bodyObj = {
-        model,
-        stream: false,
-        messages: [
-          { role: 'system', content: systemMessage },
-          { role: 'user', content: userMessage }
-        ]
-      };
-      const parsed = await fetchUrlJson(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyObj)
-      });
-      assistantText =
-        (parsed &&
-          parsed.message &&
-          typeof parsed.message.content === 'string' &&
-          parsed.message.content) ||
-        '';
-      if (!assistantText && typeof parsed.response === 'string') {
-        assistantText = parsed.response;
-      }
-    } else {
-      const base = (settings.openaiBaseUrl || 'https://api.openai.com').replace(/\/+$/, '');
-      const model = settings.openaiModel || 'gpt-4o-mini';
-      const apiKey = settings.apiKey ? String(settings.apiKey) : '';
-      if (!apiKey) {
-        return { ok: false, error: 'OpenAI API key is not set. Add it in Settings.' };
-      }
-      const url = `${base}/v1/chat/completions`;
-      const bodyObj = {
-        model,
-        messages: [
-          { role: 'system', content: systemMessage },
-          { role: 'user', content: userMessage }
-        ],
-        temperature: 0.4
-      };
-      const parsed = await fetchUrlJson(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(bodyObj)
-      });
-      const choice = parsed && parsed.choices && parsed.choices[0];
-      assistantText =
-        choice && choice.message && typeof choice.message.content === 'string'
-          ? choice.message.content
-          : '';
-    }
-
-    if (!assistantText) {
-      return { ok: false, error: 'Model returned an empty response.' };
-    }
+    const assistantText = await fetchLlmAssistantText(
+      settings,
+      systemMessage,
+      userMessage,
+      ac.signal
+    );
 
     const setData = parseFlashcardSetFromLlmOutput(assistantText);
     if (setData.cards && setData.cards.length > numCards) {
@@ -1424,8 +1392,121 @@ ipcMain.handle('generate-card-set-via-llm', async (_event, payload) => {
     fs.writeFileSync(outPath, JSON.stringify(setData, null, 2), 'utf8');
     return { ok: true, filePath: outPath, set: setData };
   } catch (err) {
+    if (isLlmAbortedError(err)) {
+      return { ok: false, cancelled: true, error: 'Cancelled.' };
+    }
     console.error('generate-card-set-via-llm:', err);
     return { ok: false, error: err && err.message ? err.message : String(err) };
+  } finally {
+    if (activeLlmHttpSlot === slot) {
+      activeLlmHttpSlot = null;
+    }
+  }
+});
+
+ipcMain.handle('generate-dynamic-quiz-via-llm', async (_event, payload) => {
+  const ac = new AbortController();
+  const slot = { abort: () => ac.abort() };
+  activeLlmHttpSlot = slot;
+  try {
+    const deckManifestPath = payload && payload.deckManifestPath;
+    if (!deckManifestPath || typeof deckManifestPath !== 'string') {
+      return { ok: false, error: 'Deck manifest path is required.' };
+    }
+    const resolved = assertPathInsideDecksDir(deckManifestPath);
+    if (!resolved.toLowerCase().endsWith('.deck.json')) {
+      return { ok: false, error: 'Dynamic quizzes apply to library categories only (folder manifests).' };
+    }
+
+    const meta = readDeckManifestMeta(resolved);
+    const fromManifest = meta.description && String(meta.description).trim();
+    const scopeExtra =
+      payload && payload.scopeText != null ? String(payload.scopeText).trim() : '';
+    const topicLabel =
+      payload && payload.topicLabel != null ? String(payload.topicLabel).trim() : '';
+    const topicSetPathRaw =
+      payload && payload.topicSetPath != null && typeof payload.topicSetPath === 'string'
+        ? String(payload.topicSetPath).trim()
+        : '';
+
+    const setsDir = path.resolve(getSetsDirectoryForDeckManifest(resolved));
+    const topicDescription =
+      topicLabel && topicSetPathRaw
+        ? readTopicDescriptionInsideSetsDir(topicSetPathRaw, setsDir)
+        : '';
+
+    let scope = '';
+    let nameHint = 'deck title';
+    if (topicLabel) {
+      const parts = [
+        `Primary topic — every question must test understanding of this subject (do not drift to unrelated themes): ${topicLabel}`
+      ];
+      if (topicDescription) {
+        parts.push(`Authoring notes from the topic JSON "description" field:\n${topicDescription}`);
+      }
+      if (fromManifest) {
+        parts.push(
+          `Broader category context from the category manifest (use for terminology and boundaries; keep questions centered on the primary topic):\n${fromManifest}`
+        );
+      }
+      scope = parts.join('\n\n');
+      nameHint = 'primary topic';
+    } else {
+      scope = fromManifest || scopeExtra;
+      if (!scope) {
+        return {
+          ok: false,
+          error:
+            'This category needs a description in its manifest (use the ... button on the category in Library), or pass scope text when prompted. The description defines what the LLM should test.'
+        };
+      }
+    }
+
+    const settings = readLlmSettingsFromDisk();
+    const deckTitle = meta.name || 'Deck';
+    const userMessage = `Create a FLASHCARD QUESTION POOL for repeated quizzes (transient session; cards are not saved to disk).
+
+Category: ${deckTitle}
+Topic and scope — every question must stay on-topic and respect this scope:
+${scope}
+
+Produce exactly 50 distinct multiple-choice cards in the "cards" array. Vary subtopics and difficulty within the scope. Be accurate and educational.`;
+
+    const systemMessage = `${FLASHCARD_FORMAT_LLM_INSTRUCTIONS}
+
+The root "name" should be a short title derived from the ${nameHint}.
+The root "description" should briefly note this is a 50-card pool for randomized quiz sessions.
+
+Output only the JSON object.`;
+
+    const assistantText = await fetchLlmAssistantText(
+      settings,
+      systemMessage,
+      userMessage,
+      ac.signal
+    );
+    const setData = parseFlashcardSetFromLlmOutput(assistantText);
+    const poolSize = Array.isArray(setData.cards) ? setData.cards.length : 0;
+    if (poolSize < 10) {
+      return {
+        ok: false,
+        error: `Model returned only ${poolSize} usable cards; need at least 10. Try again or switch model.`
+      };
+    }
+    if (setData.cards.length > 50) {
+      setData.cards = setData.cards.slice(0, 50);
+    }
+    return { ok: true, set: setData };
+  } catch (err) {
+    if (isLlmAbortedError(err)) {
+      return { ok: false, cancelled: true, error: 'Cancelled.' };
+    }
+    console.error('generate-dynamic-quiz-via-llm:', err);
+    return { ok: false, error: err && err.message ? err.message : String(err) };
+  } finally {
+    if (activeLlmHttpSlot === slot) {
+      activeLlmHttpSlot = null;
+    }
   }
 });
 
