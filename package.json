@@ -1,6 +1,6 @@
 {
   "name": "froggy-flash",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Electron app for practicing and scoring knowledge via flashcards loaded from JSON.",
   "main": "main.js",
   "scripts": {
